@@ -1,0 +1,10 @@
+.DS_Store
+terraform-provider-sneller
+dist/
+
+# Local .terraform directories
+**/.terraform/*
+
+# .tfstate files
+*.tfstate
+*.tfstate.*

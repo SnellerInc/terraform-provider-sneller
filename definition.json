@@ -1,0 +1,1 @@
+{"name":"s6logs","input":[{"pattern":"s3://sneller-s6logs-us-east-1-ndjson/*/*.log","format":"json"}]}
