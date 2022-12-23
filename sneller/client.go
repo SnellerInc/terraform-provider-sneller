@@ -2,6 +2,7 @@ package sneller
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -19,17 +20,7 @@ type Client struct {
 	apiURL        *url.URL
 }
 
-func (c *Client) withTenantID(tenantID string) *Client {
-	return &Client{
-		Client:        c.Client,
-		tenantID:      tenantID,
-		Token:         c.Token,
-		DefaultRegion: c.DefaultRegion,
-		apiURL:        c.apiURL,
-	}
-}
-
-func (c *Client) url(method, region, path string) *http.Request {
+func (c *Client) url(ctx context.Context, method, region, path string) *http.Request {
 	effectiveRegion := region
 	if effectiveRegion == "" {
 		effectiveRegion = c.DefaultRegion
@@ -41,17 +32,16 @@ func (c *Client) url(method, region, path string) *http.Request {
 	url := *c.apiURL
 	url.Host = strings.ReplaceAll(url.Host, "__REGION__", effectiveRegion)
 	url.Path = fmt.Sprintf("/tenant/%s%s", tenantID, path)
-	return &http.Request{
-		Method: method,
-		URL:    &url,
-		Header: http.Header{
-			"Authorization": []string{"Bearer " + c.Token},
-		},
+	req, err := http.NewRequestWithContext(ctx, method, url.String(), nil)
+	if err != nil {
+		panic(err)
 	}
+	req.Header.Add("Authorization", "Bearer "+c.Token)
+	return req
 }
 
-func (c *Client) Ping(region string) error {
-	req := c.url(http.MethodGet, region, "")
+func (c *Client) Ping(ctx context.Context, region string) error {
+	req := c.url(ctx, http.MethodGet, region, "")
 	resp, err := c.Client.Do(req)
 	if err != nil {
 		return err
@@ -93,8 +83,8 @@ type TenantInfo struct {
 	Regions       map[string]TenantRegionInfo `json:",omitempty"`
 }
 
-func (c *Client) Tenant(region string) (*TenantInfo, error) {
-	req := c.url(http.MethodGet, "", "")
+func (c *Client) Tenant(ctx context.Context, region string) (*TenantInfo, error) {
+	req := c.url(ctx, http.MethodGet, "", "")
 	if region != "" {
 		q, err := url.ParseQuery(req.URL.RawQuery)
 		if err != nil {
@@ -127,8 +117,8 @@ func (c *Client) Tenant(region string) (*TenantInfo, error) {
 	return &tenantInfo, nil
 }
 
-func (c *Client) SetBucket(region, bucket, roleARN string) error {
-	req := c.url(http.MethodPatch, region, "")
+func (c *Client) SetBucket(ctx context.Context, region, bucket, roleARN string) error {
+	req := c.url(ctx, http.MethodPatch, region, "")
 
 	q, err := url.ParseQuery(req.URL.RawQuery)
 	if err != nil {
@@ -153,8 +143,8 @@ func (c *Client) SetBucket(region, bucket, roleARN string) error {
 	return nil
 }
 
-func (c *Client) ResetBucket(region string) error {
-	req := c.url(http.MethodPatch, region, "")
+func (c *Client) ResetBucket(ctx context.Context, region string) error {
+	req := c.url(ctx, http.MethodPatch, region, "")
 
 	q, err := url.ParseQuery(req.URL.RawQuery)
 	if err != nil {
@@ -177,8 +167,8 @@ func (c *Client) ResetBucket(region string) error {
 	return nil
 }
 
-func (c *Client) Databases(region string) ([]string, error) {
-	resp, err := c.Client.Do(c.url(http.MethodGet, region, "/db"))
+func (c *Client) Databases(ctx context.Context, region string) ([]string, error) {
+	resp, err := c.Client.Do(c.url(ctx, http.MethodGet, region, "/db"))
 	if err != nil {
 		return nil, err
 	}
@@ -203,8 +193,8 @@ type TableInfo struct {
 	HasIndex      bool
 }
 
-func (c *Client) Database(region, database string) ([]TableInfo, error) {
-	resp, err := c.Client.Do(c.url(http.MethodGet, region, fmt.Sprintf("/db/%s/table", database)))
+func (c *Client) Database(ctx context.Context, region, database string) ([]TableInfo, error) {
+	resp, err := c.Client.Do(c.url(ctx, http.MethodGet, region, fmt.Sprintf("/db/%s/table", database)))
 	if err != nil {
 		return nil, err
 	}
@@ -236,8 +226,8 @@ type TableInput struct {
 	Format  string `json:"format"`
 }
 
-func (c *Client) SetTable(region, database, table string, input []TableInput) error {
-	req := c.url(http.MethodPut, region, fmt.Sprintf("/db/%s/table/%s/definition", database, table))
+func (c *Client) SetTable(ctx context.Context, region, database, table string, input []TableInput) error {
+	req := c.url(ctx, http.MethodPut, region, fmt.Sprintf("/db/%s/table/%s/definition", database, table))
 	body, err := json.Marshal(TableDescription{
 		Name:  table,
 		Input: input,
@@ -262,8 +252,8 @@ func (c *Client) SetTable(region, database, table string, input []TableInput) er
 	return nil
 }
 
-func (c *Client) DeleteTable(region, database, table string, all bool) error {
-	req := c.url(http.MethodDelete, region, fmt.Sprintf("/db/%s/table/%s/definition", database, table))
+func (c *Client) DeleteTable(ctx context.Context, region, database, table string, all bool) error {
+	req := c.url(ctx, http.MethodDelete, region, fmt.Sprintf("/db/%s/table/%s/definition", database, table))
 	if all {
 		q, err := url.ParseQuery(req.URL.RawQuery)
 		if err != nil {
@@ -287,8 +277,8 @@ func (c *Client) DeleteTable(region, database, table string, all bool) error {
 	return nil
 }
 
-func (c *Client) Table(region, database, table string) (*TableDescription, error) {
-	resp, err := c.Client.Do(c.url(http.MethodGet, region, fmt.Sprintf("/db/%s/table/%s/definition", database, table)))
+func (c *Client) Table(ctx context.Context, region, database, table string) (*TableDescription, error) {
+	resp, err := c.Client.Do(c.url(ctx, http.MethodGet, region, fmt.Sprintf("/db/%s/table/%s/definition", database, table)))
 	if err != nil {
 		return nil, err
 	}

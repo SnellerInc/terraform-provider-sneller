@@ -19,8 +19,15 @@ install: build
 	mv ${BINARY} ~/.terraform.d/plugins/${HOSTNAME}/${NAMESPACE}/${NAME}/${VERSION}/${OS_ARCH}
 
 example: install
-	(cd examples && rm -rf .terraform .terraform.lock.hcl)
-	(cd examples && terraform init && terraform apply)
+	cd test && rm -rf .terraform .terraform.lock.hcl
+	cd test && terraform init
+	cd test && terraform apply
+
+debug: install
+	ln -fs "`pwd`/__debug_bin" ~/.terraform.d/plugins/${HOSTNAME}/${NAMESPACE}/${NAME}/${VERSION}/${OS_ARCH}/${BINARY}
+	cd test && rm -rf .terraform .terraform.lock.hcl
+	cd test && terraform init
+	cd test && TF_REATTACH_PROVIDERS='{"sneller.io/edu/sneller":{"Protocol":"grpc","ProtocolVersion":5,"Pid":10504,"Test":true,"Addr":{"Network":"unix","String":"/tmp/plugin515156416"}}}' terraform apply
 
 test: 
 	go test -i $(TEST) || exit 1                                                   

@@ -4,91 +4,128 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-func dataSourceTable() *schema.Resource {
-	return &schema.Resource{
-		ReadContext: dataSourceTableRead,
-		Schema: map[string]*schema.Schema{
-			"region": {
-				Type:     schema.TypeString,
-				Optional: true,
+func NewTableDataSource() datasource.DataSource {
+	return &tableDataSource{}
+}
+
+// Ensure the implementation satisfies the expected interfaces.
+var (
+	_ datasource.DataSource              = &tableDataSource{}
+	_ datasource.DataSourceWithConfigure = &tableDataSource{}
+)
+
+type tableDataSource struct {
+	client *Client
+}
+
+type tableDataSourceModel struct {
+	Region   types.String                `tfsdk:"region"`
+	Database types.String                `tfsdk:"database"`
+	Table    types.String                `tfsdk:"table"`
+	Location types.String                `tfsdk:"location"`
+	Input    []tableInputDataSourceModel `tfsdk:"input"`
+}
+
+type tableInputDataSourceModel struct {
+	Pattern string `tfsdk:"pattern"`
+	Format  string `tfsdk:"format"`
+}
+
+func (r *tableDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_table"
+}
+
+func (r *tableDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Description: "Provides configuration for a table.",
+		Attributes: map[string]schema.Attribute{
+			"region": schema.StringAttribute{
+				Description: "Region where the table is located. If not set, then the tenant's home region is assumed.",
+				Optional:    true,
 			},
-			"database": {
-				Type:     schema.TypeString,
-				Required: true,
+			"database": schema.StringAttribute{
+				Description: "Database name.",
+				Required:    true,
 			},
-			"table": {
-				Type:     schema.TypeString,
-				Required: true,
+			"table": schema.StringAttribute{
+				Description: "Table name.",
+				Required:    true,
 			},
-			"location": {
-				Type:     schema.TypeString,
-				Computed: true,
+			"location": schema.StringAttribute{
+				Description: "S3 url of the database location (i.e. `s3://sneller-cache-bucket/db/test-db/test-table/`).",
+				Computed:    true,
 			},
-			"input": {
-				Type:     schema.TypeList,
-				Computed: true,
-				Elem: &schema.Resource{
-					Schema: map[string]*schema.Schema{
-						"pattern": {
-							Type:     schema.TypeString,
-							Required: true,
+		},
+		Blocks: map[string]schema.Block{
+			"input": schema.ListNestedBlock{
+				NestedObject: schema.NestedBlockObject{
+					Attributes: map[string]schema.Attribute{
+						"pattern": schema.StringAttribute{
+							Description: "Pattern definition to specify the source pattern (i.e. `s3://sneller-source-bucket/data/*.ndjson`).",
+							Computed:    true,
 						},
-						"format": {
-							Type:     schema.TypeString,
-							Required: true,
+						"format": schema.StringAttribute{
+							Description: "Format of the input data (`json`, `json.gz`, `json.zst`, `cloudtrail.json.gz`, `csv`, `csv.gz`, `csv.zst`, `tsv`, `tsv.gz`, `tsv.zst`).",
+							Computed:    true,
 						},
 					},
 				},
 			},
-			// TODO: Add features and partitioning information
 		},
 	}
 }
 
-func dataSourceTableRead(ctx context.Context, d *schema.ResourceData, m any) diag.Diagnostics {
-	c := m.(*Client)
+func (d *tableDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+	d.client = req.ProviderData.(*Client)
+}
 
-	// Warning or errors can be collected in a slice type
-	var diags diag.Diagnostics
+func (d *tableDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 
-	region := d.Get("region").(string)
+	var data tableDataSourceModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	region := data.Region.ValueString()
 	if region == "" {
-		region = c.DefaultRegion
+		region = d.client.DefaultRegion
 	}
-	database := d.Get("database").(string)
-	table := d.Get("table").(string)
 
-	tenantInfo, err := c.Tenant(region)
+	tenantInfo, err := d.client.Tenant(ctx, region)
 	if err != nil {
-		return diag.FromErr(err)
+		resp.Diagnostics.AddError(
+			"Cannot get tenant info",
+			fmt.Sprintf("Unable to get tenant info in region %s: %v", region, err.Error()),
+		)
+		return
 	}
 
-	tableDescription, err := c.Table(region, database, table)
+	database, table := data.Database.ValueString(), data.Table.ValueString()
+	tableDescription, err := d.client.Table(ctx, region, database, table)
 	if err != nil {
-		return diag.FromErr(err)
+		resp.Diagnostics.AddError(
+			"Cannot get table configuration",
+			fmt.Sprintf("Unable to get tenant table configuration of table %s:%s in region %s: %v", database, table, region, err.Error()),
+		)
+		return
 	}
 
-	if err := d.Set("location", fmt.Sprintf("%s/db/%s/%s/", tenantInfo.Regions[region].Bucket, database, table)); err != nil {
-		return diag.FromErr(err)
-	}
-
-	var inputs []any
+	data.Region = types.StringValue(region)
+	data.Location = types.StringValue(fmt.Sprintf("%s/db/%s/%s/", tenantInfo.Regions[region].Bucket, database, table))
+	data.Input = make([]tableInputDataSourceModel, 0, len(tableDescription.Input))
 	for _, input := range tableDescription.Input {
-		i := make(map[string]any)
-		i["pattern"] = input.Pattern
-		i["format"] = input.Format
-		inputs = append(inputs, i)
+		data.Input = append(data.Input, tableInputDataSourceModel(input))
 	}
 
-	if err := d.Set("input", inputs); err != nil {
-		return diag.FromErr(err)
-	}
-
-	d.SetId(fmt.Sprintf("%s/%s/%s/%s", tenantInfo.TenantID, region, database, table))
-
-	return diags
+	// Save data into Terraform state
+	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }

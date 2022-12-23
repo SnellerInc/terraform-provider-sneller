@@ -6,63 +6,101 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+)
+
+func NewTenantRegionDataSource() datasource.DataSource {
+	return &tenantRegionDataSource{}
+}
+
+// Ensure the implementation satisfies the expected interfaces.
+var (
+	_ datasource.DataSource              = &tenantRegionDataSource{}
+	_ datasource.DataSourceWithConfigure = &tenantRegionDataSource{}
 )
 
 const defaultDbPrefix = "db/"
 
-func dataSourceTenantRegion() *schema.Resource {
-	return &schema.Resource{
-		ReadContext: dataSourceTenantRegionRead,
-		Schema: map[string]*schema.Schema{
-			"region": {
-				Type:     schema.TypeString,
+type tenantRegionDataSource struct {
+	client *Client
+}
+
+type tenantRegionDataSourceModel struct {
+	Region     types.String `tfsdk:"region"`
+	Bucket     types.String `tfsdk:"bucket"`
+	Prefix     types.String `tfsdk:"prefix"`
+	RoleARN    types.String `tfsdk:"role_arn"`
+	ExternalID types.String `tfsdk:"external_id"`
+	SqsARN     types.String `tfsdk:"sqs_arn"`
+}
+
+func (r *tenantRegionDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_tenant_region"
+}
+
+func (r *tenantRegionDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Description: "Provides configuration of the tenant.",
+		Attributes: map[string]schema.Attribute{
+			"region": schema.StringAttribute{
 				Optional: true,
 			},
-			"bucket": {
-				Type:     schema.TypeString,
+			"bucket": schema.StringAttribute{
 				Computed: true,
 			},
-			"prefix": {
-				Type:     schema.TypeString,
+			"prefix": schema.StringAttribute{
 				Computed: true,
 			},
-			"role_arn": {
-				Type:     schema.TypeString,
+			"role_arn": schema.StringAttribute{
 				Computed: true,
 			},
-			"external_id": {
-				Type:     schema.TypeString,
+			"external_id": schema.StringAttribute{
 				Computed: true,
 			},
-			"sqs_arn": {
-				Type:     schema.TypeString,
+			"sqs_arn": schema.StringAttribute{
 				Computed: true,
 			},
 		},
 	}
 }
 
-func dataSourceTenantRegionRead(ctx context.Context, d *schema.ResourceData, m any) diag.Diagnostics {
-	c := m.(*Client)
+func (d *tenantRegionDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+	d.client = req.ProviderData.(*Client)
+}
 
-	// Warning or errors can be collected in a slice type
-	var diags diag.Diagnostics
+func (d *tenantRegionDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 
-	// determine region
-	region := d.Get("region").(string)
+	var data tenantRegionDataSourceModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	region := data.Region.ValueString()
 	if region == "" {
-		tenantInfo, err := c.Tenant("")
+		tenantInfo, err := d.client.Tenant(ctx, "")
 		if err != nil {
-			return diag.FromErr(err)
+			resp.Diagnostics.AddError(
+				"Cannot get tenant info",
+				fmt.Sprintf("Unable to get tenant info: %v", err.Error()),
+			)
+			return
 		}
 		region = tenantInfo.HomeRegion
 	}
 
-	tenantInfo, err := c.Tenant(region)
+	tenantInfo, err := d.client.Tenant(ctx, region)
 	if err != nil {
-		return diag.FromErr(err)
+		resp.Diagnostics.AddError(
+			"Cannot get tenant info",
+			fmt.Sprintf("Unable to get tenant info in region %s: %v", region, err.Error()),
+		)
+		return
 	}
 
 	tenantRegionInfo := tenantInfo.Regions[region]
@@ -77,26 +115,13 @@ func dataSourceTenantRegionRead(ctx context.Context, d *schema.ResourceData, m a
 		}
 	}
 
-	if err := d.Set("region", region); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := d.Set("bucket", strings.TrimPrefix(tenantRegionInfo.Bucket, "s3://")); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := d.Set("prefix", defaultDbPrefix); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := d.Set("role_arn", tenantRegionInfo.RegionRoleArn); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := d.Set("external_id", tenantRegionInfo.RegionExternalID); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := d.Set("sqs_arn", sqsARN); err != nil {
-		return diag.FromErr(err)
-	}
+	data.Region = types.StringValue(region)
+	data.Bucket = types.StringValue(strings.TrimPrefix(tenantRegionInfo.Bucket, "s3://"))
+	data.Prefix = types.StringValue(defaultDbPrefix)
+	data.RoleARN = types.StringValue(tenantRegionInfo.RegionRoleArn)
+	data.ExternalID = types.StringValue(tenantRegionInfo.RegionExternalID)
+	data.SqsARN = types.StringValue(sqsARN)
 
-	d.SetId(fmt.Sprintf("%s/%s", tenantInfo.TenantID, region))
-
-	return diags
+	// Save data into Terraform state
+	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }

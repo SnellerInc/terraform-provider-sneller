@@ -2,60 +2,103 @@ package sneller
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/provider"
+	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-// Provider -
-func Provider() *schema.Provider {
-	return &schema.Provider{
-		Schema: map[string]*schema.Schema{
-			"token": {
-				Type:        schema.TypeString,
-				Required:    true,
-				Sensitive:   true,
-				DefaultFunc: schema.EnvDefaultFunc("SNELLER_TOKEN", nil),
+func New() provider.Provider {
+	return &snellerProvider{}
+}
+
+var _ provider.Provider = (*snellerProvider)(nil)
+
+type snellerProvider struct{}
+
+func (p *snellerProvider) Metadata(_ context.Context, _ provider.MetadataRequest, resp *provider.MetadataResponse) {
+	resp.TypeName = "sneller"
+}
+
+func (p *snellerProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Description: "Terraform provider for interacting with Sneller.",
+		Attributes: map[string]schema.Attribute{
+			"token": schema.StringAttribute{
+				Description: "Sneller token to authenticate to the Sneller API. It defaults to the " + envSnellerToken + " " +
+					"environment variable.",
+				Sensitive: true,
+				Optional:  true,
 			},
-			"default_region": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				DefaultFunc: schema.EnvDefaultFunc("SNELLER_REGION", nil),
-			},
-			"api_endpoint": {
-				Type:     schema.TypeString,
+			"default_region": schema.StringAttribute{
+				Description: "Default AWS region to use. It defaults to the " + envSnellerRegion + " " +
+					"environment variable. If this variable isn't set, then it default to us-east-1",
 				Optional: true,
-				Default:  "https://latest-api-production.__REGION__.sneller.io",
+			},
+			"api_endpoint": schema.StringAttribute{
+				Description: "Endpoint of the Sneller API (intended for internal use).",
+				Optional:    true,
 			},
 		},
-		ResourcesMap: map[string]*schema.Resource{
-			"sneller_tenant_region": resourceTenantRegion(),
-			"sneller_table":         resourceTable(),
-		},
-		DataSourcesMap: map[string]*schema.Resource{
-			"sneller_tenant":        dataSourceTenant(),
-			"sneller_tenant_region": dataSourceTenantRegion(),
-			"sneller_databases":     dataSourceDatabases(),
-			"sneller_database":      dataSourceDatabase(),
-			"sneller_table":         dataSourceTable(),
-		},
-		ConfigureContextFunc: providerConfigure,
 	}
 }
 
-func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
-	token := d.Get("token").(string)
-	defaultRegion := d.Get("default_region").(string)
-	apiEndPoint := d.Get("api_endpoint").(string)
+type snellerProviderModel struct {
+	Token         types.String `tfsdk:"token"`
+	DefaultRegion types.String `tfsdk:"default_region"`
+	Endpoint      types.String `tfsdk:"api_endpoint"`
+}
 
-	// Warning or errors can be collected in a slice type
-	var diags diag.Diagnostics
+const (
+	envSnellerToken      = "SNELLER_TOKEN"
+	envSnellerRegion     = "SNELLER_REGION"
+	defaultApiEndPoint   = "https://latest-api-production.__REGION__.sneller.io"
+	defaultSnellerRegion = "us-east-1"
+)
 
+func (p *snellerProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
+	var data snellerProviderModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
+
+	// Check configuration data, which should take precedence over
+	token := os.Getenv(envSnellerToken)
+	if data.Token.ValueString() != "" {
+		token = data.Token.ValueString()
+	}
+	if token == "" {
+		resp.Diagnostics.AddError(
+			"Missing token",
+			"While configuring the provider, the token was not found in "+
+				"the "+envSnellerToken+" environment variable or provider "+
+				"configuration block token attribute.",
+		)
+	}
+
+	defaultRegion := os.Getenv(envSnellerRegion)
+	if data.DefaultRegion.ValueString() != "" {
+		defaultRegion = data.DefaultRegion.ValueString()
+	}
+	if defaultRegion == "" {
+		defaultRegion = defaultSnellerRegion
+	}
+
+	apiEndPoint := defaultApiEndPoint
+	if data.Endpoint.ValueString() != "" {
+		apiEndPoint = data.Endpoint.ValueString()
+	}
 	apiURL, err := url.Parse(apiEndPoint)
 	if err != nil {
-		return nil, diag.FromErr(err)
+		resp.Diagnostics.AddError(
+			"Invalid API url",
+			fmt.Sprintf("The Sneller API url %q is invalid", apiEndPoint),
+		)
+		return
 	}
 
 	c := Client{
@@ -65,9 +108,30 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 		apiURL:        apiURL,
 	}
 
-	if err = c.Ping(defaultRegion); err != nil {
-		return nil, diag.FromErr(err)
+	if err = c.Ping(ctx, defaultRegion); err != nil {
+		resp.Diagnostics.AddError(
+			"Cannot access Sneller API",
+			fmt.Sprintf("The Sneller API cannot be contacted: %v", err.Error()),
+		)
 	}
 
-	return &c, diags
+	resp.DataSourceData = &c
+	resp.ResourceData = &c
+}
+
+func (p *snellerProvider) Resources(context.Context) []func() resource.Resource {
+	return []func() resource.Resource{
+		NewTenantRegionResource,
+		NewTableResource,
+	}
+}
+
+func (p *snellerProvider) DataSources(context.Context) []func() datasource.DataSource {
+	return []func() datasource.DataSource{
+		NewTenantDataSource,
+		NewTenantRegionDataSource,
+		NewDatabasesDataSource,
+		NewDatabaseDataSource,
+		NewTableDataSource,
+	}
 }

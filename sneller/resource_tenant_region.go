@@ -6,92 +6,121 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-func resourceTenantRegion() *schema.Resource {
-	return &schema.Resource{
-		CreateContext: resourceTenantRegionCreateOrUpdate,
-		ReadContext:   resourceTenantRegionRead,
-		UpdateContext: resourceTenantRegionCreateOrUpdate,
-		DeleteContext: resourceTenantRegionDelete,
-		Schema: map[string]*schema.Schema{
-			"region": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
+func NewTenantRegionResource() resource.Resource {
+	return &tenantRegionResource{}
+}
+
+// Ensure the implementation satisfies the expected interfaces.
+var (
+	_ resource.Resource                = &tenantRegionResource{}
+	_ resource.ResourceWithConfigure   = &tenantRegionResource{}
+	_ resource.ResourceWithImportState = &tenantRegionResource{}
+)
+
+type tenantRegionResource struct {
+	client *Client
+}
+
+type tenantRegionResourceModel struct {
+	ID         types.String `tfsdk:"id"`
+	Region     types.String `tfsdk:"region"`
+	Bucket     types.String `tfsdk:"bucket"`
+	Prefix     types.String `tfsdk:"prefix"`
+	RoleARN    types.String `tfsdk:"role_arn"`
+	ExternalID types.String `tfsdk:"external_id"`
+	SqsARN     types.String `tfsdk:"sqs_arn"`
+}
+
+func (r *tenantRegionResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_tenant_region"
+}
+
+func (r *tenantRegionResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Description: "Configure a Sneller table",
+		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Description:   "Terraform identifier.",
+				Computed:      true,
+				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
-			"bucket": {
-				Type:     schema.TypeString,
-				Required: true,
+			"region": schema.StringAttribute{
+				Description:   "Region from which to fetch the tenant configuration. When not set, then it default's to the tenant's home region.",
+				Optional:      true,
+				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
-			"prefix": {
-				Type:     schema.TypeString,
-				Computed: true,
+			"bucket": schema.StringAttribute{
+				Description: "Sneller cache bucket name.",
+				Required:    true,
 			},
-			"role_arn": {
-				Type:     schema.TypeString,
-				Required: true,
+			"prefix": schema.StringAttribute{
+				Description: "Prefix of the files in the Sneller cache bucket (always 'db/').",
+				Computed:    true,
 			},
-			"external_id": {
-				Type:     schema.TypeString,
-				Computed: true,
+			"role_arn": schema.StringAttribute{
+				Description: "ARN of the role that is used to access the S3 data in this region's cache bucket. It is also used by the ingestion process to read the source data.",
+				Required:    true,
 			},
-			"sqs_arn": {
-				Type:     schema.TypeString,
-				Computed: true,
+			"external_id": schema.StringAttribute{
+				Description: "External ID (typically the same as the tenant ID) that is passed when assuming the IAM role",
+				Computed:    true,
 			},
-		},
-		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
+			"sqs_arn": schema.StringAttribute{
+				Description: "ARN of the SQS resource that is used to signal the ingestion process when new data arrives.",
+				Computed:    true,
+			},
 		},
 	}
 }
 
-func resourceTenantRegionCreateOrUpdate(ctx context.Context, d *schema.ResourceData, m any) diag.Diagnostics {
-	c := m.(*Client)
-
-	tenantInfo, err := c.Tenant("")
-	if err != nil {
-		return diag.FromErr(err)
+func (r *tenantRegionResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
 	}
-
-	// determine region
-	region := d.Get("region").(string)
-	if region == "" {
-		region = tenantInfo.HomeRegion
-	}
-
-	bucket := d.Get("bucket").(string)
-	roleARN := d.Get("role_arn").(string)
-
-	err = c.SetBucket(region, "s3://"+bucket, roleARN)
-	if err != nil {
-		return diag.FromErr(err)
-	}
-
-	d.SetId(fmt.Sprintf("%s/%s", tenantInfo.TenantID, region))
-
-	return resourceTenantRegionRead(ctx, d, m)
+	r.client = req.ProviderData.(*Client)
 }
 
-func resourceTenantRegionRead(ctx context.Context, d *schema.ResourceData, m any) diag.Diagnostics {
-	c := m.(*Client)
+func (r *tenantRegionResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 
-	// Warning or errors can be collected in a slice type
-	var diags diag.Diagnostics
+	var data tenantRegionResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
-	parts := strings.Split(d.Id(), "/")
+	parts := strings.Split(data.ID.ValueString(), "/")
 	if len(parts) != 2 {
-		return diag.Errorf("invalid id %q", d.Id())
+		resp.Diagnostics.AddError(
+			"Cannot parse ID",
+			fmt.Sprintf("Invalid ID %q", data.ID.ValueString()),
+		)
+		return
 	}
 	tenantID := parts[0]
 	region := parts[1]
 
-	tenantInfo, err := c.withTenantID(tenantID).Tenant(region)
+	tenantInfo, err := r.client.Tenant(ctx, region)
 	if err != nil {
-		return diag.FromErr(err)
+		resp.Diagnostics.AddError(
+			"Cannot get tenant info",
+			fmt.Sprintf("Unable to get tenant info in region %s: %v", region, err.Error()),
+		)
+		return
+	}
+	if tenantInfo.TenantID != tenantID {
+		resp.Diagnostics.AddError(
+			"Invalid tenant",
+			fmt.Sprintf("Expected tenant %s, but got %s", tenantID, tenantInfo.TenantID),
+		)
+		return
 	}
 
 	tenantRegionInfo := tenantInfo.Regions[region]
@@ -103,48 +132,172 @@ func resourceTenantRegionRead(ctx context.Context, d *schema.ResourceData, m any
 		tenantRoleARN, err := arn.Parse(tenantInfo.TenantRoleArn)
 		if err == nil {
 			sqsARN = fmt.Sprintf("arn:aws:sqs:%s:%s:tenant-sdb-%s", region, tenantRoleARN.AccountID, tenantInfo.TenantID)
+		} else {
+			sqsARN = "invalid"
 		}
 	}
 
-	if err := d.Set("region", region); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := d.Set("bucket", strings.TrimPrefix(tenantRegionInfo.Bucket, "s3://")); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := d.Set("prefix", defaultDbPrefix); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := d.Set("role_arn", tenantRegionInfo.RegionRoleArn); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := d.Set("external_id", tenantRegionInfo.RegionExternalID); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := d.Set("sqs_arn", sqsARN); err != nil {
-		return diag.FromErr(err)
-	}
+	data.Region = types.StringValue(region)
+	data.Bucket = types.StringValue(strings.TrimPrefix(tenantRegionInfo.Bucket, "s3://"))
+	data.Prefix = types.StringValue(defaultDbPrefix)
+	data.RoleARN = types.StringValue(tenantRegionInfo.RegionRoleArn)
+	data.ExternalID = types.StringValue(tenantRegionInfo.RegionExternalID)
+	data.SqsARN = types.StringValue(sqsARN)
 
-	return diags
+	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
-func resourceTenantRegionDelete(ctx context.Context, d *schema.ResourceData, m any) diag.Diagnostics {
-	c := m.(*Client)
+func (r *tenantRegionResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var data tenantRegionResourceModel
 
-	// Warning or errors can be collected in a slice type
-	var diags diag.Diagnostics
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
-	parts := strings.Split(d.Id(), "/")
+	region := data.Region.ValueString()
+	tenantInfo, err := r.client.Tenant(ctx, region)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Cannot get tenant info",
+			fmt.Sprintf("Unable to get tenant info in region %s: %v", region, err.Error()),
+		)
+		return
+	}
+	if region == "" {
+		region = tenantInfo.HomeRegion
+		tenantInfo, err = r.client.Tenant(ctx, region)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Cannot get tenant info",
+				fmt.Sprintf("Unable to get tenant info in region %s: %v", region, err.Error()),
+			)
+			return
+		}
+	}
+	tenantRegionInfo := tenantInfo.Regions[region]
+
+	bucket := data.Bucket.ValueString()
+	roleARN := data.RoleARN.ValueString()
+
+	err = r.client.SetBucket(ctx, region, "s3://"+bucket, roleARN)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Cannot set tenant region configuration",
+			fmt.Sprintf("Unable to set tenant configuration in region %s: %v", region, err.Error()),
+		)
+		return
+	}
+
+	data.ID = types.StringValue(fmt.Sprintf("%s/%s", tenantInfo.TenantID, region))
+	data.Region = types.StringValue(region)
+	data.Prefix = types.StringValue(defaultDbPrefix)
+	data.ExternalID = types.StringValue(tenantRegionInfo.RegionExternalID)
+	data.SqsARN = types.StringValue(tenantRegionInfo.SqsArn)
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+}
+
+func (r *tenantRegionResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var data tenantRegionResourceModel
+
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	parts := strings.Split(data.ID.ValueString(), "/")
 	if len(parts) != 2 {
-		return diag.Errorf("invalid id %q", d.Id())
+		resp.Diagnostics.AddError(
+			"Cannot parse ID",
+			fmt.Sprintf("Invalid ID %q", data.ID.ValueString()),
+		)
+		return
 	}
 	tenantID := parts[0]
 	region := parts[1]
 
-	err := c.withTenantID(tenantID).ResetBucket(region)
+	tenantInfo, err := r.client.Tenant(ctx, region)
 	if err != nil {
-		return diag.FromErr(err)
+		resp.Diagnostics.AddError(
+			"Cannot get tenant info",
+			fmt.Sprintf("Unable to get tenant info in region %s: %v", region, err.Error()),
+		)
+		return
+	}
+	if tenantInfo.TenantID != tenantID {
+		resp.Diagnostics.AddError(
+			"Invalid tenant",
+			fmt.Sprintf("Expected tenant %s, but got %s", tenantID, tenantInfo.TenantID),
+		)
+		return
+	}
+	tenantRegionInfo := tenantInfo.Regions[region]
+
+	bucket := data.Bucket.ValueString()
+	roleARN := data.RoleARN.ValueString()
+	err = r.client.SetBucket(ctx, region, "s3://"+bucket, roleARN)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Cannot set tenant region configuration",
+			fmt.Sprintf("Unable to set tenant configuration in region %s: %v", region, err.Error()),
+		)
+		return
 	}
 
-	return diags
+	data.Prefix = types.StringValue(defaultDbPrefix)
+	data.ExternalID = types.StringValue(tenantRegionInfo.RegionExternalID)
+	data.SqsARN = types.StringValue(tenantRegionInfo.SqsArn)
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+}
+
+func (r *tenantRegionResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var data tenantRegionResourceModel
+
+	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	parts := strings.Split(data.ID.ValueString(), "/")
+	if len(parts) != 2 {
+		resp.Diagnostics.AddError(
+			"Cannot parse ID",
+			fmt.Sprintf("Invalid ID %q", data.ID.ValueString()),
+		)
+		return
+	}
+	tenantID := parts[0]
+	region := parts[1]
+
+	tenantInfo, err := r.client.Tenant(ctx, region)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Cannot get tenant info",
+			fmt.Sprintf("Unable to get tenant info in region %s: %v", region, err.Error()),
+		)
+		return
+	}
+	if tenantInfo.TenantID != tenantID {
+		resp.Diagnostics.AddError(
+			"Invalid tenant",
+			fmt.Sprintf("Expected tenant %s, but got %s", tenantID, tenantInfo.TenantID),
+		)
+		return
+	}
+
+	err = r.client.ResetBucket(ctx, region)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Cannot delete tenant region configuration",
+			fmt.Sprintf("Unable to reset tenant configuration in region %s: %v", region, err.Error()),
+		)
+		return
+	}
+}
+
+func (r *tenantRegionResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	// Retrieve import ID and save to id attribute
+	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }

@@ -4,72 +4,119 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-func dataSourceDatabase() *schema.Resource {
-	return &schema.Resource{
-		ReadContext: dataSourceDatabaseRead,
-		Schema: map[string]*schema.Schema{
-			"region": {
-				Type:     schema.TypeString,
+func NewDatabaseDataSource() datasource.DataSource {
+	return &databaseDataSource{}
+}
+
+// Ensure the implementation satisfies the expected interfaces.
+var (
+	_ datasource.DataSource              = &databaseDataSource{}
+	_ datasource.DataSourceWithConfigure = &databaseDataSource{}
+)
+
+type databaseDataSource struct {
+	client *Client
+}
+
+type databaseDataSourceModel struct {
+	Region   types.String `tfsdk:"region"`
+	Database types.String `tfsdk:"database"`
+	Location types.String `tfsdk:"location"`
+	Tables   types.Set    `tfsdk:"tables"`
+}
+
+func (r *databaseDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_database"
+}
+
+func (r *databaseDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Description: "Provides configuration of the tenant.",
+		Attributes: map[string]schema.Attribute{
+			"region": schema.StringAttribute{
 				Optional: true,
 			},
-			"database": {
-				Type:     schema.TypeString,
+			"database": schema.StringAttribute{
 				Required: true,
 			},
-			"location": {
-				Type:     schema.TypeString,
+			"location": schema.StringAttribute{
 				Computed: true,
 			},
-			"tables": {
-				Type:     schema.TypeSet,
-				Computed: true,
-				Elem: &schema.Schema{
-					Type: schema.TypeString,
-				},
+			"tables": schema.SetAttribute{
+				Computed:    true,
+				ElementType: types.StringType,
 			},
 		},
 	}
 }
 
-func dataSourceDatabaseRead(ctx context.Context, d *schema.ResourceData, m any) diag.Diagnostics {
-	c := m.(*Client)
+func (d *databaseDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+	d.client = req.ProviderData.(*Client)
+}
 
-	// Warning or errors can be collected in a slice type
-	var diags diag.Diagnostics
+func (d *databaseDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 
-	region := d.Get("region").(string)
+	var data databaseDataSourceModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	tenantInfo, err := d.client.Tenant(ctx, "")
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Cannot get tenant info",
+			fmt.Sprintf("Unable to get tenant info: %v", err.Error()),
+		)
+		return
+	}
+
+	region := data.Region.ValueString()
 	if region == "" {
-		region = c.DefaultRegion
-	}
-	database := d.Get("database").(string)
-
-	tenantInfo, err := c.Tenant(region)
-	if err != nil {
-		return diag.FromErr(err)
+		region = tenantInfo.HomeRegion
 	}
 
-	tableInfos, err := c.Database(region, database)
+	tenantInfo, err = d.client.Tenant(ctx, region)
 	if err != nil {
-		return diag.FromErr(err)
+		resp.Diagnostics.AddError(
+			"Cannot get tenant info",
+			fmt.Sprintf("Unable to get tenant info in region %s: %v", region, err.Error()),
+		)
+		return
 	}
+
+	database := data.Database.ValueString()
+
+	tableInfos, err := d.client.Database(ctx, region, database)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Cannot get databases",
+			fmt.Sprintf("Unable to get databases in region %s: %v", region, err.Error()),
+		)
+		return
+	}
+
+	data.Region = types.StringValue(region)
+	data.Location = types.StringValue(fmt.Sprintf("%s/db/%s/", tenantInfo.Regions[region].Bucket, database))
 
 	tables := make([]string, 0, len(tableInfos))
 	for _, ti := range tableInfos {
 		tables = append(tables, ti.Name)
 	}
 
-	if err := d.Set("location", fmt.Sprintf("%s/db/%s/", tenantInfo.Regions[region].Bucket, database)); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := d.Set("tables", tables); err != nil {
-		return diag.FromErr(err)
-	}
+	var diags diag.Diagnostics
+	data.Tables, diags = types.SetValueFrom(ctx, types.StringType, tables)
+	resp.Diagnostics.Append(diags...)
 
-	d.SetId(fmt.Sprintf("%s/%s/%s", tenantInfo.TenantID, region, database))
-
-	return diags
+	// Save data into Terraform state
+	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }

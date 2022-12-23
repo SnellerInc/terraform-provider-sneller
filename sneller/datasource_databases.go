@@ -4,55 +4,93 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-func dataSourceDatabases() *schema.Resource {
-	return &schema.Resource{
-		ReadContext: dataSourceDatabasesRead,
-		Schema: map[string]*schema.Schema{
-			"region": {
-				Type:     schema.TypeString,
+func NewDatabasesDataSource() datasource.DataSource {
+	return &databasesDataSource{}
+}
+
+// Ensure the implementation satisfies the expected interfaces.
+var (
+	_ datasource.DataSource              = &databasesDataSource{}
+	_ datasource.DataSourceWithConfigure = &databasesDataSource{}
+)
+
+type databasesDataSource struct {
+	client *Client
+}
+
+type databasesDataSourceModel struct {
+	Region    types.String `tfsdk:"region"`
+	Databases types.Set    `tfsdk:"databases"`
+}
+
+func (r *databasesDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_databases"
+}
+
+func (r *databasesDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Description: "Provides configuration of the tenant.",
+		Attributes: map[string]schema.Attribute{
+			"region": schema.StringAttribute{
 				Optional: true,
 			},
-			"databases": {
-				Type:     schema.TypeSet,
-				Computed: true,
-				Elem: &schema.Schema{
-					Type: schema.TypeString,
-				},
+			"databases": schema.SetAttribute{
+				Computed:    true,
+				ElementType: types.StringType,
 			},
 		},
 	}
 }
 
-func dataSourceDatabasesRead(ctx context.Context, d *schema.ResourceData, m any) diag.Diagnostics {
-	c := m.(*Client)
+func (d *databasesDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+	d.client = req.ProviderData.(*Client)
+}
 
-	// Warning or errors can be collected in a slice type
-	var diags diag.Diagnostics
+func (d *databasesDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 
-	region := d.Get("region").(string)
+	var data databasesDataSourceModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	tenantInfo, err := d.client.Tenant(ctx, "")
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Cannot get tenant info",
+			fmt.Sprintf("Unable to get tenant info: %v", err.Error()),
+		)
+		return
+	}
+
+	region := data.Region.ValueString()
 	if region == "" {
-		region = c.DefaultRegion
+		region = tenantInfo.HomeRegion
 	}
 
-	tenantInfo, err := c.Tenant(region)
+	databases, err := d.client.Databases(ctx, region)
 	if err != nil {
-		return diag.FromErr(err)
+		resp.Diagnostics.AddError(
+			"Cannot get databases",
+			fmt.Sprintf("Unable to get databases in region %s: %v", region, err.Error()),
+		)
+		return
 	}
 
-	databases, err := c.Databases(region)
-	if err != nil {
-		return diag.FromErr(err)
-	}
+	data.Region = types.StringValue(region)
+	var diags diag.Diagnostics
+	data.Databases, diags = types.SetValueFrom(ctx, types.StringType, databases)
+	resp.Diagnostics.Append(diags...)
 
-	if err := d.Set("databases", databases); err != nil {
-		return diag.FromErr(err)
-	}
-
-	d.SetId(fmt.Sprintf("%s/%s/%s", tenantInfo.TenantID, region))
-
-	return diags
+	// Save data into Terraform state
+	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }

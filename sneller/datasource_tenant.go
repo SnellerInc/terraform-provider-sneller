@@ -2,107 +2,122 @@ package sneller
 
 import (
 	"context"
+	"fmt"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-func dataSourceTenant() *schema.Resource {
-	return &schema.Resource{
-		ReadContext: dataSourceTenantRead,
-		Schema: map[string]*schema.Schema{
-			"tenant_id": {
-				Type:     schema.TypeString,
+func NewTenantDataSource() datasource.DataSource {
+	return &tenantDataSource{}
+}
+
+// Ensure the implementation satisfies the expected interfaces.
+var (
+	_ datasource.DataSource              = &tenantDataSource{}
+	_ datasource.DataSourceWithConfigure = &tenantDataSource{}
+)
+
+type tenantDataSource struct {
+	client *Client
+}
+
+type tenantDataSourceModel struct {
+	TenantID      types.String `tfsdk:"tenant_id"`
+	State         types.String `tfsdk:"state"`
+	Name          types.String `tfsdk:"name"`
+	HomeRegion    types.String `tfsdk:"home_region"`
+	Email         types.String `tfsdk:"email"`
+	TenantRoleARN types.String `tfsdk:"tenant_role_arn"`
+	Mfa           types.String `tfsdk:"mfa"`
+	CreatedAt     types.String `tfsdk:"created_at"`
+	ActivatedAt   types.String `tfsdk:"activated_at"`
+	DeactivatedAt types.String `tfsdk:"deactivated_at"`
+}
+
+func (r *tenantDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_tenant"
+}
+
+func (r *tenantDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Description: "Provides configuration of the tenant.",
+		Attributes: map[string]schema.Attribute{
+			"tenant_id": schema.StringAttribute{
+				Optional: true,
+			},
+			"state": schema.StringAttribute{
 				Computed: true,
 			},
-			"state": {
-				Type:     schema.TypeString,
+			"name": schema.StringAttribute{
 				Computed: true,
 			},
-			"name": {
-				Type:     schema.TypeString,
+			"home_region": schema.StringAttribute{
 				Computed: true,
 			},
-			"home_region": {
-				Type:     schema.TypeString,
+			"email": schema.StringAttribute{
 				Computed: true,
 			},
-			"email": {
-				Type:     schema.TypeString,
+			"tenant_role_arn": schema.StringAttribute{
 				Computed: true,
 			},
-			"tenant_role_arn": {
-				Type:     schema.TypeString,
+			"mfa": schema.StringAttribute{
 				Computed: true,
 			},
-			"mfa": {
-				Type:     schema.TypeString,
+			"created_at": schema.StringAttribute{
 				Computed: true,
 			},
-			"created_at": {
-				Type:     schema.TypeString,
+			"activated_at": schema.StringAttribute{
 				Computed: true,
 			},
-			"activated_at": {
-				Type:     schema.TypeString,
-				Computed: true,
-			},
-			"deactivated_at": {
-				Type:     schema.TypeString,
+			"deactivated_at": schema.StringAttribute{
 				Computed: true,
 			},
 		},
 	}
 }
 
-func dataSourceTenantRead(ctx context.Context, d *schema.ResourceData, m any) diag.Diagnostics {
-	c := m.(*Client)
+func (d *tenantDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+	d.client = req.ProviderData.(*Client)
+}
 
-	// Warning or errors can be collected in a slice type
-	var diags diag.Diagnostics
+func (d *tenantDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 
-	tenantInfo, err := c.Tenant("")
+	var data tenantDataSourceModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	tenantInfo, err := d.client.Tenant(ctx, "")
 	if err != nil {
-		return diag.FromErr(err)
+		resp.Diagnostics.AddError(
+			"Cannot get tenant info",
+			fmt.Sprintf("Unable to get tenant info: %v", err.Error()),
+		)
+		return
 	}
 
-	if err := d.Set("tenant_id", tenantInfo.TenantID); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := d.Set("state", tenantInfo.TenantState); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := d.Set("name", tenantInfo.TenantName); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := d.Set("home_region", tenantInfo.HomeRegion); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := d.Set("email", tenantInfo.Email); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := d.Set("tenant_role_arn", tenantInfo.TenantRoleArn); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := d.Set("mfa", tenantInfo.Mfa); err != nil {
-		return diag.FromErr(err)
-	}
-	if err := d.Set("created_at", tenantInfo.CreatedAt.Format(time.RFC3339)); err != nil {
-		return diag.FromErr(err)
-	}
+	data.TenantID = types.StringValue(tenantInfo.TenantID)
+	data.State = types.StringValue(tenantInfo.TenantState)
+	data.Name = types.StringValue(tenantInfo.TenantName)
+	data.Email = types.StringValue(tenantInfo.Email)
+	data.HomeRegion = types.StringValue(tenantInfo.HomeRegion)
+	data.TenantRoleARN = types.StringValue(tenantInfo.TenantRoleArn)
+	data.Mfa = types.StringValue(string(tenantInfo.Mfa))
+	data.CreatedAt = types.StringValue(tenantInfo.CreatedAt.Format(time.RFC3339))
 	if tenantInfo.ActivatedAt != nil {
-		if err := d.Set("activated_at", tenantInfo.ActivatedAt.Format(time.RFC3339)); err != nil {
-			return diag.FromErr(err)
-		}
+		data.ActivatedAt = types.StringValue(tenantInfo.ActivatedAt.Format(time.RFC3339))
 	}
 	if tenantInfo.DeactivatedAt != nil {
-		if err := d.Set("deactivated_at", tenantInfo.DeactivatedAt.Format(time.RFC3339)); err != nil {
-			return diag.FromErr(err)
-		}
+		data.DeactivatedAt = types.StringValue(tenantInfo.DeactivatedAt.Format(time.RFC3339))
 	}
 
-	d.SetId(tenantInfo.TenantID)
-
-	return diags
+	// Save data into Terraform state
+	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
