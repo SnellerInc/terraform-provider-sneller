@@ -22,22 +22,11 @@ resource "aws_s3_bucket_public_access_block" "sneller_cache" {
   restrict_public_buckets = true
 }
 
-# Grant Sneller S3 role access to the bucket
-resource "aws_s3_bucket_policy" "sneller_cache" {
-  for_each = local.cache_buckets
-  bucket   = aws_s3_bucket.sneller_cache[each.key].id
-  policy   = data.aws_iam_policy_document.sneller_cache[each.key].json
-}
-
 data "aws_iam_policy_document" "sneller_cache" {
   for_each = local.cache_buckets
 
   # R/W access to the sneller-cache (prefix: /db/)
   statement {
-    principals {
-      type        = "AWS"
-      identifiers = [for r in local.roles : aws_iam_role.role[r].arn]
-    }
     actions   = ["s3:ListBucket"]
     resources = [aws_s3_bucket.sneller_cache[each.key].arn]
     condition {
@@ -47,10 +36,6 @@ data "aws_iam_policy_document" "sneller_cache" {
     }
   }
   statement {
-    principals {
-      type        = "AWS"
-      identifiers = [for r in local.roles : aws_iam_role.role[r].arn]
-    }
     actions   = ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"]
     resources = ["${aws_s3_bucket.sneller_cache[each.key].arn}/db/*"]
   }

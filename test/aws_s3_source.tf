@@ -3,7 +3,7 @@ resource "aws_s3_bucket" "sneller_source" {
   # Enable this for production to avoid trashing your source bucket
   # lifecycle { prevent_destroy = true }
 
-  bucket = "sneller-source-${data.aws_caller_identity.current.account_id}-${var.region}"
+  bucket = "sneller-source-${lower(data.sneller_tenant.tenant.tenant_id)}-${var.region}"
 }
 
 # Disable all public access to the cache bucket
@@ -16,19 +16,9 @@ resource "aws_s3_bucket_public_access_block" "sneller_source" {
   restrict_public_buckets = true
 }
 
-# Grant Sneller S3 role access to the bucket
-resource "aws_s3_bucket_policy" "sneller_source" {
-  bucket = aws_s3_bucket.sneller_source.id
-  policy = data.aws_iam_policy_document.sneller_source.json
-}
-
-data "aws_iam_policy_document" "sneller_source" {
+data "aws_iam_policy_document" "sneller_s3_source" {
   # Read-only access to the sneller-cache (prefix set via `source_prefix` variable)
   statement {
-    principals {
-      type        = "AWS"
-      identifiers = [aws_iam_role.sneller_s3.arn]
-    }
     actions   = ["s3:ListBucket"]
     resources = [aws_s3_bucket.sneller_source.arn]
     condition {
@@ -38,10 +28,6 @@ data "aws_iam_policy_document" "sneller_source" {
     }
   }
   statement {
-    principals {
-      type        = "AWS"
-      identifiers = [aws_iam_role.sneller_s3.arn]
-    }
     actions   = ["s3:GetObject"]
     resources = ["${aws_s3_bucket.sneller_source.arn}/${var.source_prefix}*"]
   }

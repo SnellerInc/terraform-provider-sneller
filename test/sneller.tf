@@ -8,7 +8,7 @@ data "sneller_tenant" "tenant" {
 resource "sneller_tenant_region" "region" {
   depends_on = [
     # Wait until Sneller has access to the cache bucket
-    aws_s3_bucket_policy.sneller_cache
+    aws_iam_role_policy.sneller_s3_cache
   ]
   
   region   = var.region
