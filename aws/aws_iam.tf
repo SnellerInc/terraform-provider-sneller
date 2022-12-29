@@ -2,17 +2,17 @@ locals {
   roles = toset([
     "role1-${lower(var.snellerTenantId)}",
     "role2-${lower(var.snellerTenantId)}",
-  ]),
-  roles_and_cache_buckets = [
+  ])
+  roles_and_cache_buckets = {
     for rb in flatten([
-      for r in keys(local.roles) : [
-        for b in keys(local.cache_buckets) : {
+      for r in local.roles : [
+        for b in local.cache_buckets : {
           role         = r
           cache_bucket = b
         }
       ]
-    ])
-  ]
+    ]) : "${rb.role}-${rb.cache_bucket}" => rb
+  }
 }
 
 resource "aws_iam_role" "role" {

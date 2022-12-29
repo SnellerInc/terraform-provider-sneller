@@ -1,7 +1,7 @@
 locals {
   cache_buckets = toset([
-    "sneller-cache1-${lower(var.snellerTenantId)}",
-    "sneller-cache2-${lower(var.snellerTenantId)}",
+    "sneller-cache1-${lower(var.snellerTenantId)}-${data.aws_caller_identity.current.account_id}",
+    "sneller-cache2-${lower(var.snellerTenantId)}-${data.aws_caller_identity.current.account_id}",
   ])
 }
 

@@ -83,8 +83,8 @@ func initVars(t *testing.T) {
 		snellerTenantID = tenantInfo.TenantID
 		snellerAccountID = tenantRoleARN.AccountID
 
-		bucket1Name = fmt.Sprintf("sneller-cache1-%s", strings.ToLower(snellerTenantID))
-		bucket2Name = fmt.Sprintf("sneller-cache2-%s", strings.ToLower(snellerTenantID))
+		bucket1Name = fmt.Sprintf("sneller-cache1-%s-%s", strings.ToLower(snellerTenantID), strings.ToLower(snellerTenantID))
+		bucket2Name = fmt.Sprintf("sneller-cache2-%s-%s", strings.ToLower(snellerTenantID), strings.ToLower(snellerTenantID))
 		role1ARN = fmt.Sprintf("arn:aws:iam::%s:role/role1-%s", tenantAccountID, strings.ToLower(snellerTenantID))
 		role2ARN = fmt.Sprintf("arn:aws:iam::%s:role/role2-%s", tenantAccountID, strings.ToLower(snellerTenantID))
 		databaseName = "test-db"
