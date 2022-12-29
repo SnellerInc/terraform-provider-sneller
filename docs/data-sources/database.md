@@ -3,12 +3,12 @@
 page_title: "sneller_database Data Source - sneller"
 subcategory: ""
 description: |-
-  Provides configuration of the tenant.
+  Provides database information (tables).
 ---
 
 # sneller_database (Data Source)
 
-Provides configuration of the tenant.
+Provides database information (tables).
 
 
 

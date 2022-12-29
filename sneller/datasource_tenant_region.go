@@ -43,7 +43,7 @@ func (r *tenantRegionDataSource) Metadata(_ context.Context, req datasource.Meta
 
 func (r *tenantRegionDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Provides configuration of the tenant.",
+		Description: "Provides region configuration of the tenant.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Description: "Terraform identifier.",

@@ -3,12 +3,12 @@
 page_title: "sneller_table Data Source - sneller"
 subcategory: ""
 description: |-
-  Provides configuration for a table.
+  Provides table configuration.
 ---
 
 # sneller_table (Data Source)
 
-Provides configuration for a table.
+Provides table configuration.
 
 ## Example Usage
 

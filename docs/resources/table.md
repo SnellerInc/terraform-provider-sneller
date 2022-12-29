@@ -3,12 +3,12 @@
 page_title: "sneller_table Resource - sneller"
 subcategory: ""
 description: |-
-  Configure a Sneller table
+  Configure a Sneller table.
 ---
 
 # sneller_table (Resource)
 
-Configure a Sneller table
+Configure a Sneller table.
 
 ## Example Usage
 

@@ -3,12 +3,12 @@
 page_title: "sneller_tenant_region Resource - sneller"
 subcategory: ""
 description: |-
-  Configure a Sneller table
+  Configure a tenant's regional configuration.
 ---
 
 # sneller_tenant_region (Resource)
 
-Configure a Sneller table
+Configure a tenant's regional configuration.
 
 ## Example Usage
 

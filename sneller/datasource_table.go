@@ -43,7 +43,7 @@ func (r *tableDataSource) Metadata(_ context.Context, req datasource.MetadataReq
 
 func (r *tableDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Provides configuration for a table.",
+		Description: "Provides table configuration.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Description: "Terraform identifier.",

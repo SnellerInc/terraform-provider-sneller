@@ -37,7 +37,7 @@ func (r *databasesDataSource) Metadata(_ context.Context, req datasource.Metadat
 
 func (r *databasesDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Provides configuration of the tenant.",
+		Description: "Provides all databases.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Description: "Terraform identifier.",

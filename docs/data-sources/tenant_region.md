@@ -3,12 +3,12 @@
 page_title: "sneller_tenant_region Data Source - sneller"
 subcategory: ""
 description: |-
-  Provides configuration of the tenant.
+  Provides region configuration of the tenant.
 ---
 
 # sneller_tenant_region (Data Source)
 
-Provides configuration of the tenant.
+Provides region configuration of the tenant.
 
 
 

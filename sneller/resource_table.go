@@ -50,7 +50,7 @@ func (r *tableResource) Metadata(_ context.Context, req resource.MetadataRequest
 
 func (r *tableResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Configure a Sneller table",
+		Description: "Configure a Sneller table.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Description:   "Terraform identifier.",
