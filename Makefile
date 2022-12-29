@@ -18,11 +18,6 @@ install: build
 	mkdir -p ~/.terraform.d/plugins/${HOSTNAME}/${NAMESPACE}/${NAME}/${VERSION}/${OS_ARCH}
 	mv ${BINARY} ~/.terraform.d/plugins/${HOSTNAME}/${NAMESPACE}/${NAME}/${VERSION}/${OS_ARCH}
 
-example: install
-	cd test && rm -rf .terraform .terraform.lock.hcl
-	cd test && terraform init
-	cd test && terraform apply
-
 debug: install
 	ln -fs "`pwd`/__debug_bin" ~/.terraform.d/plugins/${HOSTNAME}/${NAMESPACE}/${NAME}/${VERSION}/${OS_ARCH}/${BINARY}
 	cd test && rm -rf .terraform .terraform.lock.hcl
@@ -30,8 +25,7 @@ debug: install
 	cd test && TF_REATTACH_PROVIDERS='{"sneller.io/edu/sneller":{"Protocol":"grpc","ProtocolVersion":5,"Pid":10504,"Test":true,"Addr":{"Network":"unix","String":"/tmp/plugin515156416"}}}' terraform apply
 
 test: 
-	go test -i $(TEST) || exit 1                                                   
-	echo $(TEST) | xargs -t -n4 go test $(TESTARGS) -timeout=30s -parallel=4                    
+	go test -i -count=1 -parallel=4 ./...
 
-testacc: 
-	TF_ACC=1 go test $(TEST) -v $(TESTARGS) -timeout 120m   
+testacc:
+	TF_ACC=1 go test -count=1 -parallel=1 -timeout 10m -v ./...; \

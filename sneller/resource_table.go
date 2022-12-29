@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -29,12 +30,13 @@ type tableResource struct {
 }
 
 type tableResourceModel struct {
-	ID       types.String              `tfsdk:"id"`
-	Region   types.String              `tfsdk:"region"`
-	Database types.String              `tfsdk:"database"`
-	Table    types.String              `tfsdk:"table"`
-	Location types.String              `tfsdk:"location"`
-	Input    []tableInputResourceModel `tfsdk:"input"`
+	ID          types.String              `tfsdk:"id"`
+	LastUpdated types.String              `tfsdk:"last_updated"`
+	Region      types.String              `tfsdk:"region"`
+	Database    types.String              `tfsdk:"database"`
+	Table       types.String              `tfsdk:"table"`
+	Location    types.String              `tfsdk:"location"`
+	Input       []tableInputResourceModel `tfsdk:"input"`
 }
 
 type tableInputResourceModel struct {
@@ -55,6 +57,10 @@ func (r *tableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 				Computed:      true,
 				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
+			"last_updated": schema.StringAttribute{
+				Description: "Timestamp of the last Terraform update.",
+				Computed:    true,
+			},
 			"region": schema.StringAttribute{
 				Description:   "Region where the table should be created. If not set, then the table is created in the tenant's home region.",
 				Optional:      true,
@@ -71,8 +77,9 @@ func (r *tableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
 			"location": schema.StringAttribute{
-				Description: "S3 url of the database location (i.e. `s3://sneller-cache-bucket/db/test-db/test-table/`).",
-				Computed:    true,
+				Description:         "S3 url of the database location (i.e. `s3://sneller-cache-bucket/db/test-db/test-table/`).",
+				MarkdownDescription: "S3 url of the database location (i.e. `s3://sneller-cache-bucket/db/test-db/test-table/`).",
+				Computed:            true,
 			},
 		},
 		Blocks: map[string]schema.Block{
@@ -85,8 +92,9 @@ func (r *tableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 							Required:    true,
 						},
 						"format": schema.StringAttribute{
-							Description: "Format of the input data (`json`, `json.gz`, `json.zst`, `cloudtrail.json.gz`, `csv`, `csv.gz`, `csv.zst`, `tsv`, `tsv.gz`, `tsv.zst`).",
-							Required:    true,
+							Description:         "Format of the input data.",
+							MarkdownDescription: "Format of the input data (" + formats + ").",
+							Required:            true,
 						},
 					},
 				},
@@ -149,6 +157,9 @@ func (r *tableResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	}
 
 	data.ID = types.StringValue(fmt.Sprintf("%s/%s/%s/%s", tenantInfo.TenantID, region, database, table))
+	data.Region = types.StringValue(region)
+	data.Database = types.StringValue(database)
+	data.Table = types.StringValue(table)
 	data.Location = types.StringValue(fmt.Sprintf("%s/db/%s/%s/", tenantInfo.Regions[region].Bucket, database, table))
 	data.Input = make([]tableInputResourceModel, 0, len(tableDescription.Input))
 	for _, input := range tableDescription.Input {
@@ -197,6 +208,7 @@ func (r *tableResource) Create(ctx context.Context, req resource.CreateRequest, 
 	}
 
 	data.ID = types.StringValue(fmt.Sprintf("%s/%s/%s/%s", tenantInfo.TenantID, region, database, table))
+	data.LastUpdated = types.StringValue(time.Now().Format(time.RFC850))
 	data.Location = types.StringValue(fmt.Sprintf("%s/db/%s/%s/", tenantInfo.Regions[region].Bucket, database, table))
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
@@ -253,6 +265,7 @@ func (r *tableResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		return
 	}
 
+	data.LastUpdated = types.StringValue(time.Now().Format(time.RFC850))
 	data.Location = types.StringValue(fmt.Sprintf("%s/db/%s/%s/", tenantInfo.Regions[region].Bucket, database, table))
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)

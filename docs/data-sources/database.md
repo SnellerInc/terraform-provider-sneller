@@ -17,15 +17,16 @@ Provides configuration of the tenant.
 
 ### Required
 
-- `database` (String)
+- `database` (String) Database to fetch. When not set, then it default's to the tenant's home region.
 
 ### Optional
 
-- `region` (String)
+- `region` (String) Region from which to fetch the database information. When not set, then it default's to the tenant's home region.
 
 ### Read-Only
 
-- `location` (String)
-- `tables` (Set of String)
+- `id` (String) Terraform identifier.
+- `location` (String) S3 url where the tables are stored (i.e. `s3://sneller-cache-bucket/db/test-db/`).
+- `tables` (Set of String) Set of tables in the specified database.
 
 

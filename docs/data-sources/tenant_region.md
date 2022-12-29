@@ -17,14 +17,15 @@ Provides configuration of the tenant.
 
 ### Optional
 
-- `region` (String)
+- `region` (String) Region from which to fetch the tenant configuration. When not set, then it default's to the tenant's home region.
 
 ### Read-Only
 
-- `bucket` (String)
-- `external_id` (String)
-- `prefix` (String)
-- `role_arn` (String)
-- `sqs_arn` (String)
+- `bucket` (String) Sneller cache bucket name.
+- `external_id` (String) External ID (typically the same as the tenant ID) that is passed when assuming the IAM role
+- `id` (String) Terraform identifier.
+- `prefix` (String) Prefix of the files in the Sneller cache bucket (always 'db/').
+- `role_arn` (String) ARN of the role that is used to access the S3 data in this region's cache bucket. It is also used by the ingestion process to read the source data.
+- `sqs_arn` (String) ARN of the SQS resource that is used to signal the ingestion process when new data arrives.
 
 

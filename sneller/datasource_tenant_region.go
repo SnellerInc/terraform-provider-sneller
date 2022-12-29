@@ -28,6 +28,7 @@ type tenantRegionDataSource struct {
 }
 
 type tenantRegionDataSourceModel struct {
+	ID         types.String `tfsdk:"id"`
 	Region     types.String `tfsdk:"region"`
 	Bucket     types.String `tfsdk:"bucket"`
 	Prefix     types.String `tfsdk:"prefix"`
@@ -44,23 +45,33 @@ func (r *tenantRegionDataSource) Schema(ctx context.Context, req datasource.Sche
 	resp.Schema = schema.Schema{
 		Description: "Provides configuration of the tenant.",
 		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Description: "Terraform identifier.",
+				Computed:    true,
+			},
 			"region": schema.StringAttribute{
-				Optional: true,
+				Description: "Region from which to fetch the tenant configuration. When not set, then it default's to the tenant's home region.",
+				Optional:    true,
 			},
 			"bucket": schema.StringAttribute{
-				Computed: true,
+				Description: "Sneller cache bucket name.",
+				Computed:    true,
 			},
 			"prefix": schema.StringAttribute{
-				Computed: true,
+				Description: "Prefix of the files in the Sneller cache bucket (always 'db/').",
+				Computed:    true,
 			},
 			"role_arn": schema.StringAttribute{
-				Computed: true,
+				Description: "ARN of the role that is used to access the S3 data in this region's cache bucket. It is also used by the ingestion process to read the source data.",
+				Computed:    true,
 			},
 			"external_id": schema.StringAttribute{
-				Computed: true,
+				Description: "External ID (typically the same as the tenant ID) that is passed when assuming the IAM role",
+				Computed:    true,
 			},
 			"sqs_arn": schema.StringAttribute{
-				Computed: true,
+				Description: "ARN of the SQS resource that is used to signal the ingestion process when new data arrives.",
+				Computed:    true,
 			},
 		},
 	}
@@ -115,6 +126,7 @@ func (d *tenantRegionDataSource) Read(ctx context.Context, req datasource.ReadRe
 		}
 	}
 
+	data.ID = types.StringValue(fmt.Sprintf("%s/%s", tenantInfo.TenantID, region))
 	data.Region = types.StringValue(region)
 	data.Bucket = types.StringValue(strings.TrimPrefix(tenantRegionInfo.Bucket, "s3://"))
 	data.Prefix = types.StringValue(defaultDbPrefix)

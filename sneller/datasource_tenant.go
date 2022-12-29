@@ -25,6 +25,7 @@ type tenantDataSource struct {
 }
 
 type tenantDataSourceModel struct {
+	ID            types.String `tfsdk:"id"`
 	TenantID      types.String `tfsdk:"tenant_id"`
 	State         types.String `tfsdk:"state"`
 	Name          types.String `tfsdk:"name"`
@@ -45,6 +46,10 @@ func (r *tenantDataSource) Schema(ctx context.Context, req datasource.SchemaRequ
 	resp.Schema = schema.Schema{
 		Description: "Provides configuration of the tenant.",
 		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Description: "Terraform identifier.",
+				Computed:    true,
+			},
 			"tenant_id": schema.StringAttribute{
 				Optional: true,
 			},
@@ -103,6 +108,7 @@ func (d *tenantDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 		return
 	}
 
+	data.ID = types.StringValue(tenantInfo.TenantID)
 	data.TenantID = types.StringValue(tenantInfo.TenantID)
 	data.State = types.StringValue(tenantInfo.TenantState)
 	data.Name = types.StringValue(tenantInfo.TenantName)
@@ -113,9 +119,13 @@ func (d *tenantDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 	data.CreatedAt = types.StringValue(tenantInfo.CreatedAt.Format(time.RFC3339))
 	if tenantInfo.ActivatedAt != nil {
 		data.ActivatedAt = types.StringValue(tenantInfo.ActivatedAt.Format(time.RFC3339))
+	} else {
+		data.ActivatedAt = types.StringValue("")
 	}
 	if tenantInfo.DeactivatedAt != nil {
 		data.DeactivatedAt = types.StringValue(tenantInfo.DeactivatedAt.Format(time.RFC3339))
+	} else {
+		data.DeactivatedAt = types.StringValue("")
 	}
 
 	// Save data into Terraform state

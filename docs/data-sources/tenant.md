@@ -26,6 +26,7 @@ Provides configuration of the tenant.
 - `deactivated_at` (String)
 - `email` (String)
 - `home_region` (String)
+- `id` (String) Terraform identifier.
 - `mfa` (String)
 - `name` (String)
 - `state` (String)

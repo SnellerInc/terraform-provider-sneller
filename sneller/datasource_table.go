@@ -24,6 +24,7 @@ type tableDataSource struct {
 }
 
 type tableDataSourceModel struct {
+	ID       types.String                `tfsdk:"id"`
 	Region   types.String                `tfsdk:"region"`
 	Database types.String                `tfsdk:"database"`
 	Table    types.String                `tfsdk:"table"`
@@ -44,6 +45,10 @@ func (r *tableDataSource) Schema(ctx context.Context, req datasource.SchemaReque
 	resp.Schema = schema.Schema{
 		Description: "Provides configuration for a table.",
 		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Description: "Terraform identifier.",
+				Computed:    true,
+			},
 			"region": schema.StringAttribute{
 				Description: "Region where the table is located. If not set, then the tenant's home region is assumed.",
 				Optional:    true,
@@ -57,8 +62,9 @@ func (r *tableDataSource) Schema(ctx context.Context, req datasource.SchemaReque
 				Required:    true,
 			},
 			"location": schema.StringAttribute{
-				Description: "S3 url of the database location (i.e. `s3://sneller-cache-bucket/db/test-db/test-table/`).",
-				Computed:    true,
+				Description:         "S3 url where the table is stored (i.e. `s3://sneller-cache-bucket/db/test-db/test-table/`).",
+				MarkdownDescription: "S3 url where the table is stored (i.e. `s3://sneller-cache-bucket/db/test-db/test-table/`).",
+				Computed:            true,
 			},
 		},
 		Blocks: map[string]schema.Block{
@@ -119,6 +125,7 @@ func (d *tableDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 		return
 	}
 
+	data.ID = types.StringValue(fmt.Sprintf("%s/%s/%s/%s", tenantInfo.TenantID, region, database, table))
 	data.Region = types.StringValue(region)
 	data.Location = types.StringValue(fmt.Sprintf("%s/db/%s/%s/", tenantInfo.Regions[region].Bucket, database, table))
 	data.Input = make([]tableInputDataSourceModel, 0, len(tableDescription.Input))

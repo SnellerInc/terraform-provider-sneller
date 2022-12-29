@@ -33,8 +33,9 @@ data "sneller_table" "test" {
 
 ### Read-Only
 
+- `id` (String) Terraform identifier.
 - `input` (Block List) (see [below for nested schema](#nestedblock--input))
-- `location` (String) S3 url of the database location (i.e. `s3://sneller-cache-bucket/db/test-db/test-table/`).
+- `location` (String) S3 url where the table is stored (i.e. `s3://sneller-cache-bucket/db/test-db/test-table/`).
 
 <a id="nestedblock--input"></a>
 ### Nested Schema for `input`

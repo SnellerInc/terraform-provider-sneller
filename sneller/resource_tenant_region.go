@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -30,13 +31,14 @@ type tenantRegionResource struct {
 }
 
 type tenantRegionResourceModel struct {
-	ID         types.String `tfsdk:"id"`
-	Region     types.String `tfsdk:"region"`
-	Bucket     types.String `tfsdk:"bucket"`
-	Prefix     types.String `tfsdk:"prefix"`
-	RoleARN    types.String `tfsdk:"role_arn"`
-	ExternalID types.String `tfsdk:"external_id"`
-	SqsARN     types.String `tfsdk:"sqs_arn"`
+	ID          types.String `tfsdk:"id"`
+	LastUpdated types.String `tfsdk:"last_updated"`
+	Region      types.String `tfsdk:"region"`
+	Bucket      types.String `tfsdk:"bucket"`
+	Prefix      types.String `tfsdk:"prefix"`
+	RoleARN     types.String `tfsdk:"role_arn"`
+	ExternalID  types.String `tfsdk:"external_id"`
+	SqsARN      types.String `tfsdk:"sqs_arn"`
 }
 
 func (r *tenantRegionResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -51,6 +53,10 @@ func (r *tenantRegionResource) Schema(ctx context.Context, req resource.SchemaRe
 				Description:   "Terraform identifier.",
 				Computed:      true,
 				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
+			},
+			"last_updated": schema.StringAttribute{
+				Description: "Timestamp of the last Terraform update.",
+				Computed:    true,
 			},
 			"region": schema.StringAttribute{
 				Description:   "Region from which to fetch the tenant configuration. When not set, then it default's to the tenant's home region.",
@@ -156,31 +162,10 @@ func (r *tenantRegionResource) Create(ctx context.Context, req resource.CreateRe
 	}
 
 	region := data.Region.ValueString()
-	tenantInfo, err := r.client.Tenant(ctx, region)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Cannot get tenant info",
-			fmt.Sprintf("Unable to get tenant info in region %s: %v", region, err.Error()),
-		)
-		return
-	}
-	if region == "" {
-		region = tenantInfo.HomeRegion
-		tenantInfo, err = r.client.Tenant(ctx, region)
-		if err != nil {
-			resp.Diagnostics.AddError(
-				"Cannot get tenant info",
-				fmt.Sprintf("Unable to get tenant info in region %s: %v", region, err.Error()),
-			)
-			return
-		}
-	}
-	tenantRegionInfo := tenantInfo.Regions[region]
-
 	bucket := data.Bucket.ValueString()
 	roleARN := data.RoleARN.ValueString()
 
-	err = r.client.SetBucket(ctx, region, "s3://"+bucket, roleARN)
+	err := r.client.SetBucket(ctx, region, "s3://"+bucket, roleARN)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Cannot set tenant region configuration",
@@ -189,11 +174,35 @@ func (r *tenantRegionResource) Create(ctx context.Context, req resource.CreateRe
 		return
 	}
 
+	// refresh tenant information
+	tenantInfo, err := r.client.Tenant(ctx, region)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Cannot get tenant info (after set-bucket)",
+			fmt.Sprintf("Unable to get tenant info in region %s: %v", region, err.Error()),
+		)
+		return
+	}
+	tenantRegionInfo := tenantInfo.Regions[region]
+
+	sqsARN := tenantRegionInfo.SqsArn
+	if tenantRegionInfo.SqsArn == "" {
+		// workaround for older API versions that
+		// don't expose the SQS queue ARN
+		tenantRoleARN, err := arn.Parse(tenantInfo.TenantRoleArn)
+		if err == nil {
+			sqsARN = fmt.Sprintf("arn:aws:sqs:%s:%s:tenant-sdb-%s", region, tenantRoleARN.AccountID, tenantInfo.TenantID)
+		} else {
+			sqsARN = "invalid"
+		}
+	}
+
 	data.ID = types.StringValue(fmt.Sprintf("%s/%s", tenantInfo.TenantID, region))
+	data.LastUpdated = types.StringValue(time.Now().Format(time.RFC850))
 	data.Region = types.StringValue(region)
 	data.Prefix = types.StringValue(defaultDbPrefix)
 	data.ExternalID = types.StringValue(tenantRegionInfo.RegionExternalID)
-	data.SqsARN = types.StringValue(tenantRegionInfo.SqsArn)
+	data.SqsARN = types.StringValue(sqsARN)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
@@ -232,7 +241,6 @@ func (r *tenantRegionResource) Update(ctx context.Context, req resource.UpdateRe
 		)
 		return
 	}
-	tenantRegionInfo := tenantInfo.Regions[region]
 
 	bucket := data.Bucket.ValueString()
 	roleARN := data.RoleARN.ValueString()
@@ -245,9 +253,33 @@ func (r *tenantRegionResource) Update(ctx context.Context, req resource.UpdateRe
 		return
 	}
 
+	// refresh tenant information
+	tenantInfo, err = r.client.Tenant(ctx, region)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Cannot get tenant info (after set-bucket)",
+			fmt.Sprintf("Unable to get tenant info in region %s: %v", region, err.Error()),
+		)
+		return
+	}
+	tenantRegionInfo := tenantInfo.Regions[region]
+
+	sqsARN := tenantRegionInfo.SqsArn
+	if tenantRegionInfo.SqsArn == "" {
+		// workaround for older API versions that
+		// don't expose the SQS queue ARN
+		tenantRoleARN, err := arn.Parse(tenantInfo.TenantRoleArn)
+		if err == nil {
+			sqsARN = fmt.Sprintf("arn:aws:sqs:%s:%s:tenant-sdb-%s", region, tenantRoleARN.AccountID, tenantInfo.TenantID)
+		} else {
+			sqsARN = "invalid"
+		}
+	}
+
+	data.LastUpdated = types.StringValue(time.Now().Format(time.RFC850))
 	data.Prefix = types.StringValue(defaultDbPrefix)
 	data.ExternalID = types.StringValue(tenantRegionInfo.RegionExternalID)
-	data.SqsARN = types.StringValue(tenantRegionInfo.SqsArn)
+	data.SqsARN = types.StringValue(sqsARN)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }

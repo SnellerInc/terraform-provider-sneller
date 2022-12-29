@@ -3,7 +3,6 @@ package sneller
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"net/url"
 	"os"
 
@@ -18,7 +17,7 @@ func New() provider.Provider {
 	return &snellerProvider{}
 }
 
-var _ provider.Provider = (*snellerProvider)(nil)
+var _ provider.Provider = &snellerProvider{}
 
 type snellerProvider struct{}
 
@@ -56,10 +55,11 @@ type snellerProviderModel struct {
 }
 
 const (
-	envSnellerToken      = "SNELLER_TOKEN"
-	envSnellerRegion     = "SNELLER_REGION"
-	defaultApiEndPoint   = "https://latest-api-production.__REGION__.sneller.io"
-	defaultSnellerRegion = "us-east-1"
+	envSnellerApiEndpoint = "SNELLER_API_ENDPOINT"
+	envSnellerToken       = "SNELLER_TOKEN"
+	envSnellerRegion      = "SNELLER_REGION"
+	defaultApiEndPoint    = "https://latest-api-production.__REGION__.sneller.io"
+	defaultSnellerRegion  = "us-east-1"
 )
 
 func (p *snellerProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
@@ -88,9 +88,12 @@ func (p *snellerProvider) Configure(ctx context.Context, req provider.ConfigureR
 		defaultRegion = defaultSnellerRegion
 	}
 
-	apiEndPoint := defaultApiEndPoint
+	apiEndPoint := os.Getenv(envSnellerApiEndpoint)
 	if data.Endpoint.ValueString() != "" {
 		apiEndPoint = data.Endpoint.ValueString()
+	}
+	if apiEndPoint == "" {
+		apiEndPoint = defaultApiEndPoint
 	}
 	apiURL, err := url.Parse(apiEndPoint)
 	if err != nil {
@@ -102,7 +105,6 @@ func (p *snellerProvider) Configure(ctx context.Context, req provider.ConfigureR
 	}
 
 	c := Client{
-		Client:        http.DefaultClient,
 		Token:         token,
 		DefaultRegion: defaultRegion,
 		apiURL:        apiURL,

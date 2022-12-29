@@ -25,7 +25,9 @@ type databasesDataSource struct {
 }
 
 type databasesDataSourceModel struct {
+	ID        types.String `tfsdk:"id"`
 	Region    types.String `tfsdk:"region"`
+	Location  types.String `tfsdk:"location"`
 	Databases types.Set    `tfsdk:"databases"`
 }
 
@@ -37,10 +39,21 @@ func (r *databasesDataSource) Schema(ctx context.Context, req datasource.SchemaR
 	resp.Schema = schema.Schema{
 		Description: "Provides configuration of the tenant.",
 		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Description: "Terraform identifier.",
+				Computed:    true,
+			},
 			"region": schema.StringAttribute{
-				Optional: true,
+				Description: "Region from which to fetch the databases. When not set, then it default's to the tenant's home region.",
+				Optional:    true,
+			},
+			"location": schema.StringAttribute{
+				Description:         "S3 url where the databases are stored (i.e. `s3://sneller-cache-bucket/db/`).",
+				MarkdownDescription: "S3 url where the databases are stored (i.e. `s3://sneller-cache-bucket/db/`).",
+				Computed:            true,
 			},
 			"databases": schema.SetAttribute{
+				Description: "Set of databases in the specified region.",
 				Computed:    true,
 				ElementType: types.StringType,
 			},
@@ -77,6 +90,16 @@ func (d *databasesDataSource) Read(ctx context.Context, req datasource.ReadReque
 		region = tenantInfo.HomeRegion
 	}
 
+	tenantInfo, err = d.client.Tenant(ctx, region)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Cannot get tenant info",
+			fmt.Sprintf("Unable to get tenant info: %v", err.Error()),
+		)
+		return
+	}
+	tenantRegionInfo := tenantInfo.Regions[region]
+
 	databases, err := d.client.Databases(ctx, region)
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -86,7 +109,9 @@ func (d *databasesDataSource) Read(ctx context.Context, req datasource.ReadReque
 		return
 	}
 
+	data.ID = types.StringValue(fmt.Sprintf("%s/%s", tenantInfo.TenantID, region))
 	data.Region = types.StringValue(region)
+	data.Location = types.StringValue(fmt.Sprintf("%s/%s", tenantRegionInfo.Bucket, defaultDbPrefix))
 	var diags diag.Diagnostics
 	data.Databases, diags = types.SetValueFrom(ctx, types.StringType, databases)
 	resp.Diagnostics.Append(diags...)

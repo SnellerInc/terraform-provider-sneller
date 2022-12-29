@@ -25,6 +25,7 @@ type databaseDataSource struct {
 }
 
 type databaseDataSourceModel struct {
+	ID       types.String `tfsdk:"id"`
 	Region   types.String `tfsdk:"region"`
 	Database types.String `tfsdk:"database"`
 	Location types.String `tfsdk:"location"`
@@ -39,16 +40,25 @@ func (r *databaseDataSource) Schema(ctx context.Context, req datasource.SchemaRe
 	resp.Schema = schema.Schema{
 		Description: "Provides configuration of the tenant.",
 		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Description: "Terraform identifier.",
+				Computed:    true,
+			},
 			"region": schema.StringAttribute{
-				Optional: true,
+				Description: "Region from which to fetch the database information. When not set, then it default's to the tenant's home region.",
+				Optional:    true,
 			},
 			"database": schema.StringAttribute{
-				Required: true,
+				Description: "Database to fetch. When not set, then it default's to the tenant's home region.",
+				Required:    true,
 			},
 			"location": schema.StringAttribute{
-				Computed: true,
+				Description:         "S3 url where the tables are stored (i.e. `s3://sneller-cache-bucket/db/test-db/`).",
+				MarkdownDescription: "S3 url where the tables are stored (i.e. `s3://sneller-cache-bucket/db/test-db/`).",
+				Computed:            true,
 			},
 			"tables": schema.SetAttribute{
+				Description: "Set of tables in the specified database.",
 				Computed:    true,
 				ElementType: types.StringType,
 			},
@@ -105,6 +115,7 @@ func (d *databaseDataSource) Read(ctx context.Context, req datasource.ReadReques
 		return
 	}
 
+	data.ID = types.StringValue(fmt.Sprintf("%s/%s/%s", tenantInfo.TenantID, region, database))
 	data.Region = types.StringValue(region)
 	data.Location = types.StringValue(fmt.Sprintf("%s/db/%s/", tenantInfo.Regions[region].Bucket, database))
 

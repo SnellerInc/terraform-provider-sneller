@@ -20,6 +20,14 @@ type Client struct {
 	apiURL        *url.URL
 }
 
+func (c *Client) client() *http.Client {
+	client := c.Client
+	if client == nil {
+		client = http.DefaultClient
+	}
+	return client
+}
+
 func (c *Client) url(ctx context.Context, method, region, path string) *http.Request {
 	effectiveRegion := region
 	if effectiveRegion == "" {
@@ -42,7 +50,7 @@ func (c *Client) url(ctx context.Context, method, region, path string) *http.Req
 
 func (c *Client) Ping(ctx context.Context, region string) error {
 	req := c.url(ctx, http.MethodGet, region, "")
-	resp, err := c.Client.Do(req)
+	resp, err := c.client().Do(req)
 	if err != nil {
 		return err
 	}
@@ -94,7 +102,7 @@ func (c *Client) Tenant(ctx context.Context, region string) (*TenantInfo, error)
 		req.URL.RawQuery = q.Encode()
 	}
 
-	resp, err := c.Client.Do(req)
+	resp, err := c.client().Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +137,7 @@ func (c *Client) SetBucket(ctx context.Context, region, bucket, roleARN string) 
 	q.Set("roleArn", roleARN)
 	req.URL.RawQuery = q.Encode()
 
-	resp, err := c.Client.Do(req)
+	resp, err := c.client().Do(req)
 	if err != nil {
 		return err
 	}
@@ -153,7 +161,7 @@ func (c *Client) ResetBucket(ctx context.Context, region string) error {
 	q.Set("operation", "resetBucket")
 	req.URL.RawQuery = q.Encode()
 
-	resp, err := c.Client.Do(req)
+	resp, err := c.client().Do(req)
 	if err != nil {
 		return err
 	}
@@ -168,7 +176,7 @@ func (c *Client) ResetBucket(ctx context.Context, region string) error {
 }
 
 func (c *Client) Databases(ctx context.Context, region string) ([]string, error) {
-	resp, err := c.Client.Do(c.url(ctx, http.MethodGet, region, "/db"))
+	resp, err := c.client().Do(c.url(ctx, http.MethodGet, region, "/db"))
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +202,7 @@ type TableInfo struct {
 }
 
 func (c *Client) Database(ctx context.Context, region, database string) ([]TableInfo, error) {
-	resp, err := c.Client.Do(c.url(ctx, http.MethodGet, region, fmt.Sprintf("/db/%s/table", database)))
+	resp, err := c.client().Do(c.url(ctx, http.MethodGet, region, fmt.Sprintf("/db/%s/table", database)))
 	if err != nil {
 		return nil, err
 	}
@@ -238,7 +246,7 @@ func (c *Client) SetTable(ctx context.Context, region, database, table string, i
 	req.Header.Add("Content-Type", "application/json")
 	req.Body = io.NopCloser(bytes.NewReader(body))
 
-	resp, err := c.Client.Do(req)
+	resp, err := c.client().Do(req)
 	if err != nil {
 		return err
 	}
@@ -263,7 +271,7 @@ func (c *Client) DeleteTable(ctx context.Context, region, database, table string
 		req.URL.RawQuery = q.Encode()
 	}
 
-	resp, err := c.Client.Do(req)
+	resp, err := c.client().Do(req)
 	if err != nil {
 		return err
 	}
@@ -278,7 +286,7 @@ func (c *Client) DeleteTable(ctx context.Context, region, database, table string
 }
 
 func (c *Client) Table(ctx context.Context, region, database, table string) (*TableDescription, error) {
-	resp, err := c.Client.Do(c.url(ctx, http.MethodGet, region, fmt.Sprintf("/db/%s/table/%s/definition", database, table)))
+	resp, err := c.client().Do(c.url(ctx, http.MethodGet, region, fmt.Sprintf("/db/%s/table/%s/definition", database, table)))
 	if err != nil {
 		return nil, err
 	}
