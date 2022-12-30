@@ -22,7 +22,7 @@ func main() {
 	err := providerserver.Serve(context.Background(), sneller.New, providerserver.ServeOpts{
 		Address:         "sneller.io/edu/sneller",
 		Debug:           debug,
-		ProtocolVersion: 5,
+		ProtocolVersion: 6,
 	})
 	if err != nil {
 		log.Fatal(err)
