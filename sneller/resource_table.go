@@ -81,11 +81,10 @@ func (r *tableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 				MarkdownDescription: "S3 url of the database location (i.e. `s3://sneller-cache-bucket/db/test-db/test-table/`).",
 				Computed:            true,
 			},
-		},
-		Blocks: map[string]schema.Block{
-			"input": schema.ListNestedBlock{
-				Description: "Input definitions",
-				NestedObject: schema.NestedBlockObject{
+			"input": schema.ListNestedAttribute{
+				Description: "The input definition specifies where the source data is located and it format.",
+				Required:    true,
+				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"pattern": schema.StringAttribute{
 							Description: "Pattern definition to specify the source pattern (i.e. `s3://sneller-source-bucket/data/*.ndjson`).",

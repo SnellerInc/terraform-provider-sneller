@@ -22,20 +22,20 @@ func TestAccDataSourceDatabase(t *testing.T) {
 			region   = sneller_tenant_region.test.region
 			database = "testdb"
 			table    = "table-x"
-			input {
+			input    = [{
 				pattern = "s3://` + bucket1Name + `/*.ndjson"
 				format  = "json"
-			}			
+			}]
 		}
 		
 		resource "sneller_table" "db1_tabley" {
 			region   = sneller_tenant_region.test.region
 			database = "testdb"
 			table    = "table-y"
-			input {
+			input    = [{
 				pattern = "s3://` + bucket2Name + `/*.ndjson"
 				format  = "json"
-			}			
+			}]
 		}`
 
 	resource.Test(t, resource.TestCase{

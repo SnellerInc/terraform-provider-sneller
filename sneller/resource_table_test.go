@@ -29,15 +29,16 @@ func TestAccResourceTable(t *testing.T) {
 						database = "` + databaseName + `"
 						table    = "` + tableName + `"
 					  
-						input {
-							pattern = "s3://` + bucket1Name + `/data/*.ndjson"
-							format  = "json"
-						  }
-					  
-						input {
-							pattern = "s3://` + bucket2Name + `/data/*.ndjson"
-							format  = "json"
-						}
+						input = [
+							{
+								pattern = "s3://` + bucket1Name + `/data/*.ndjson"
+								format  = "json"
+							},
+							{
+								pattern = "s3://` + bucket2Name + `/data/*.ndjson"
+								format  = "json"
+							},
+						]
 					}`,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "id", fmt.Sprintf("%s/%s/%s/%s", snellerTenantID, defaultSnellerRegion, databaseName, tableName)),
@@ -67,10 +68,12 @@ func TestAccResourceTable(t *testing.T) {
 						database = "` + databaseName + `"
 						table    = "` + tableName + `"
 					  
-						input {
-							pattern = "s3://` + bucket2Name + `/data/*.ndjson"
-							format  = "json.gz"
-						}
+						input = [
+							{
+								pattern = "s3://` + bucket2Name + `/data/*.ndjson"
+								format  = "json.gz"
+							}
+						]
 					}`,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "id", fmt.Sprintf("%s/%s/%s/%s", snellerTenantID, defaultSnellerRegion, databaseName, tableName)),

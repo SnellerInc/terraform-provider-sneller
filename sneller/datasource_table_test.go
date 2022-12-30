@@ -22,14 +22,17 @@ func TestAccDataSourceTable(t *testing.T) {
 			region   = sneller_tenant_region.test.region
 			database = "testdb"
 			table    = "test-table"
-			input {
-				pattern = "s3://` + bucket1Name + `/*.ndjson"
-				format  = "json"
-			}			
-			input {
-				pattern = "s3://` + bucket2Name + `/*.ndjson.gz"
-				format  = "json.gz"
-			}			
+
+			input = [
+				{
+					pattern = "s3://` + bucket1Name + `/*.ndjson"
+					format  = "json"
+				},
+				{
+					pattern = "s3://` + bucket2Name + `/*.ndjson.gz"
+					format  = "json.gz"
+				},
+			]
 		}`
 
 	resource.Test(t, resource.TestCase{
