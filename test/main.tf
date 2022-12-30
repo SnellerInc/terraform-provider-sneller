@@ -6,8 +6,7 @@ terraform {
     }
 
     sneller = {
-      version = "0.1"
-      source  = "sneller.io/edu/sneller"
+      source  = "snellerinc/sneller"
     }
   }
 }
