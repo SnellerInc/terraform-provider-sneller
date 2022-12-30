@@ -34,10 +34,10 @@ data "sneller_table" "test" {
 ### Read-Only
 
 - `id` (String) Terraform identifier.
-- `input` (Block List) (see [below for nested schema](#nestedblock--input))
+- `input` (Attributes List) The input definition specifies where the source data is located and it format. (see [below for nested schema](#nestedatt--input))
 - `location` (String) S3 url where the table is stored (i.e. `s3://sneller-cache-bucket/db/test-db/test-table/`).
 
-<a id="nestedblock--input"></a>
+<a id="nestedatt--input"></a>
 ### Nested Schema for `input`
 
 Read-Only:

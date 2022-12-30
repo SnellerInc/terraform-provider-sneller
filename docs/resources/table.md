@@ -33,11 +33,11 @@ resource "sneller_table" "test" {
 ### Required
 
 - `database` (String) Database name.
+- `input` (Attributes List) The input definition specifies where the source data is located and it format. (see [below for nested schema](#nestedatt--input))
 - `table` (String) Table name.
 
 ### Optional
 
-- `input` (Block List) Input definitions (see [below for nested schema](#nestedblock--input))
 - `region` (String) Region where the table should be created. If not set, then the table is created in the tenant's home region.
 
 ### Read-Only
@@ -46,7 +46,7 @@ resource "sneller_table" "test" {
 - `last_updated` (String) Timestamp of the last Terraform update.
 - `location` (String) S3 url of the database location (i.e. `s3://sneller-cache-bucket/db/test-db/test-table/`).
 
-<a id="nestedblock--input"></a>
+<a id="nestedatt--input"></a>
 ### Nested Schema for `input`
 
 Required:

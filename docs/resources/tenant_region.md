@@ -53,18 +53,15 @@ resource "aws_s3_bucket_public_access_block" "sneller_cache" {
 }
 
 # Grant Sneller S3 role access to the bucket
-resource "aws_s3_bucket_policy" "sneller_cache" {
-  bucket = aws_s3_bucket.sneller_cache.id
+resource "aws_iam_role_policy" "sneller_cache" {
+  role   = aws_iam_role.sneller_s3.id
+  name   = "s3-cache"
   policy = data.aws_iam_policy_document.sneller_cache.json
 }
 
 data "aws_iam_policy_document" "sneller_cache" {
   # R/W access to the sneller-cache (prefix: /db/)
   statement {
-    principals {
-      type        = "AWS"
-      identifiers = [aws_iam_role.sneller_s3.arn]
-    }
     actions   = ["s3:ListBucket"]
     resources = [aws_s3_bucket.sneller_cache.arn]
     condition {
@@ -74,16 +71,16 @@ data "aws_iam_policy_document" "sneller_cache" {
     }
   }
   statement {
-    principals {
-      type        = "AWS"
-      identifiers = [aws_iam_role.sneller_s3.arn]
-    }
     actions   = ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"]
     resources = ["${aws_s3_bucket.sneller_cache.arn}/db/*"]
   }
 }
 
 resource "sneller_tenant_region" "test" {
+  # Make sure not to set the IAM role, before the
+  # role has been granted access to the S3 bucket
+  depends_on = [aws_iam_role_policy.sneller_cache]
+
   bucket   = aws_s3_bucket.sneller_cache.bucket
   role_arn = aws_iam_role.sneller_s3.arn
 }
