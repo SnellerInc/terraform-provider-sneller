@@ -37,11 +37,11 @@ type tenantRegionDataSourceModel struct {
 	SqsARN     types.String `tfsdk:"sqs_arn"`
 }
 
-func (r *tenantRegionDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+func (d *tenantRegionDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_tenant_region"
 }
 
-func (r *tenantRegionDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+func (d *tenantRegionDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Description: "Provides region configuration of the tenant.",
 		Attributes: map[string]schema.Attribute{

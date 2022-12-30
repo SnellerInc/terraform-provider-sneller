@@ -38,11 +38,11 @@ type tenantDataSourceModel struct {
 	DeactivatedAt types.String `tfsdk:"deactivated_at"`
 }
 
-func (r *tenantDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+func (d *tenantDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_tenant"
 }
 
-func (r *tenantDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+func (d *tenantDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Description: "Provides configuration of the tenant.",
 		Attributes: map[string]schema.Attribute{
