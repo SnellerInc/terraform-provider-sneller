@@ -307,3 +307,73 @@ func (c *Client) Table(ctx context.Context, region, database, table string) (*Ta
 
 	return &tableDescription, nil
 }
+
+func (c *Client) ElasticProxyConfig(ctx context.Context, region string) (*ElasticProxyConfig, error) {
+	resp, err := c.client().Do(c.url(ctx, http.MethodGet, region, "/elasticproxy/config"))
+	if err != nil {
+		return nil, err
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		msg, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("HTTP status %d: %s", resp.StatusCode, msg)
+	}
+
+	var config ElasticProxyConfig
+	if err := json.NewDecoder(resp.Body).Decode(&config); err != nil {
+		return nil, fmt.Errorf("error reading elastic proxy configuration: %s", err.Error())
+	}
+
+	return &config, nil
+}
+
+func (c *Client) SetElasticProxyConfig(ctx context.Context, region string, config ElasticProxyConfig) error {
+	data, err := json.Marshal(config)
+	if err != nil {
+		return err
+	}
+
+	req := c.url(ctx, http.MethodPut, region, "/elasticproxy/config")
+	req.Header.Add("Content-Type", "application/json")
+	req.Body = io.NopCloser(bytes.NewReader(data))
+	resp, err := c.client().Do(req)
+	if err != nil {
+		return err
+	}
+
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		msg, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("HTTP status %d: %s", resp.StatusCode, msg)
+	}
+
+	return nil
+}
+
+func (c *Client) DeleteElasticProxyConfig(ctx context.Context, region string) error {
+	resp, err := c.client().Do(c.url(ctx, http.MethodDelete, region, "/elasticproxy/config"))
+	if err != nil {
+		return err
+	}
+
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		msg, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("HTTP status %d: %s", resp.StatusCode, msg)
+	}
+
+	return nil
+}

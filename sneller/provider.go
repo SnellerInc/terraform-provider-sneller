@@ -125,6 +125,7 @@ func (p *snellerProvider) Resources(context.Context) []func() resource.Resource 
 	return []func() resource.Resource{
 		NewTenantRegionResource,
 		NewTableResource,
+		NewElasticProxyResource,
 	}
 }
 
@@ -135,5 +136,6 @@ func (p *snellerProvider) DataSources(context.Context) []func() datasource.DataS
 		NewDatabasesDataSource,
 		NewDatabaseDataSource,
 		NewTableDataSource,
+		NewElasticProxyDataSource,
 	}
 }
