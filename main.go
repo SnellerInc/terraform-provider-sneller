@@ -20,7 +20,7 @@ func main() {
 	flag.Parse()
 
 	err := providerserver.Serve(context.Background(), sneller.New, providerserver.ServeOpts{
-		Address:         "sneller.io/edu/sneller",
+		Address:         "registry.terraform.io/SnellerInc/sneller",
 		Debug:           debug,
 		ProtocolVersion: 6,
 	})
