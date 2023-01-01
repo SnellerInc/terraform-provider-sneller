@@ -140,7 +140,7 @@ func (r *elasticProxyResource) Schema(ctx context.Context, req resource.SchemaRe
 							Description:   "Ignore 'total_hits' in Elastic response (more efficient).",
 							Optional:      true,
 							Computed:      true,
-							PlanModifiers: []planmodifier.Bool{BoolDefaultValue(types.BoolValue(false))},
+							PlanModifiers: []planmodifier.Bool{BoolDefaultValue(false)},
 						},
 						"type_mapping": schema.MapNestedAttribute{
 							Description: "Custom type mappings.",
