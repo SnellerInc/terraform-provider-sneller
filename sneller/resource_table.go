@@ -30,18 +30,27 @@ type tableResource struct {
 }
 
 type tableResourceModel struct {
-	ID          types.String              `tfsdk:"id"`
-	LastUpdated types.String              `tfsdk:"last_updated"`
-	Region      types.String              `tfsdk:"region"`
-	Database    types.String              `tfsdk:"database"`
-	Table       types.String              `tfsdk:"table"`
-	Location    types.String              `tfsdk:"location"`
-	Input       []tableInputResourceModel `tfsdk:"input"`
+	ID           types.String                  `tfsdk:"id"`
+	LastUpdated  types.String                  `tfsdk:"last_updated"`
+	Region       types.String                  `tfsdk:"region"`
+	Database     types.String                  `tfsdk:"database"`
+	Table        types.String                  `tfsdk:"table"`
+	Location     types.String                  `tfsdk:"location"`
+	Inputs       []tableInputResourceModel     `tfsdk:"inputs"`
+	Partitions   []tablePartitionResourceModel `tfsdk:"partitions"`
+	BetaFeatures []string                      `tfsdk:"beta_features"`
+	SkipBackfill types.Bool                    `tfsdk:"skip_backfill"`
 }
 
 type tableInputResourceModel struct {
 	Pattern string `tfsdk:"pattern"`
 	Format  string `tfsdk:"format"`
+}
+
+type tablePartitionResourceModel struct {
+	Field string `tfsdk:"field"`
+	Type  string `tfsdk:"type"`
+	Value string `tfsdk:"value"`
 }
 
 func (r *tableResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -81,7 +90,7 @@ func (r *tableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 				MarkdownDescription: "S3 url of the database location (i.e. `s3://sneller-cache-bucket/db/test-db/test-table/`).",
 				Computed:            true,
 			},
-			"input": schema.ListNestedAttribute{
+			"inputs": schema.ListNestedAttribute{
 				Description: "The input definition specifies where the source data is located and it format.",
 				Required:    true,
 				NestedObject: schema.NestedAttributeObject{
@@ -97,6 +106,39 @@ func (r *tableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 						},
 					},
 				},
+			},
+			"partitions": schema.ListNestedAttribute{
+				Description: "Synthetic field that is generated from parts of an input URI and used to partition table data..",
+				Optional:    true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"field": schema.StringAttribute{
+							Description: "Name of the partition field. If this field conflicts with a field in the input data, the partition field will override it.",
+							Required:    true,
+						},
+						"type": schema.StringAttribute{
+							Description:   "Type of the partition field.",
+							Optional:      true,
+							Computed:      true,
+							PlanModifiers: []planmodifier.String{StringDefaultValue("string")},
+						},
+						"value": schema.StringAttribute{
+							Description: "Template string that is used to produce the value for the partition field. If this is empty (or not set), the field name is used to determine the input URI part that will be used to determine the value.",
+							Optional:    true,
+						},
+					},
+				},
+			},
+			"beta_features": schema.ListAttribute{
+				Description: "List of feature flags that can be used to turn on features for beta-testing.",
+				Optional:    true,
+				ElementType: types.StringType,
+			},
+			"skip_backfill": schema.BoolAttribute{
+				Description:   "Skip scanning the source bucket(s) for matching objects when the first objects are inserted into the table.",
+				Optional:      true,
+				Computed:      true,
+				PlanModifiers: []planmodifier.Bool{BoolDefaultValue(false)},
 			},
 		},
 	}
@@ -160,10 +202,20 @@ func (r *tableResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	data.Database = types.StringValue(database)
 	data.Table = types.StringValue(table)
 	data.Location = types.StringValue(fmt.Sprintf("%s/db/%s/%s/", tenantInfo.Regions[region].Bucket, database, table))
-	data.Input = make([]tableInputResourceModel, 0, len(tableDescription.Input))
-	for _, input := range tableDescription.Input {
-		data.Input = append(data.Input, tableInputResourceModel(input))
+	if len(tableDescription.Input) > 0 {
+		data.Inputs = make([]tableInputResourceModel, 0, len(tableDescription.Input))
+		for _, input := range tableDescription.Input {
+			data.Inputs = append(data.Inputs, tableInputResourceModel(input))
+		}
 	}
+	if len(tableDescription.Partitions) > 0 {
+		data.Partitions = make([]tablePartitionResourceModel, 0, len(tableDescription.Partitions))
+		for _, partition := range tableDescription.Partitions {
+			data.Partitions = append(data.Partitions, tablePartitionResourceModel(partition))
+		}
+	}
+	data.BetaFeatures = tableDescription.BetaFeatures
+	data.SkipBackfill = types.BoolValue(tableDescription.SkipBackfill)
 
 	// Save data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
@@ -191,13 +243,31 @@ func (r *tableResource) Create(ctx context.Context, req resource.CreateRequest, 
 		region = tenantInfo.HomeRegion
 	}
 
-	inputs := make([]TableInput, 0, len(data.Input))
-	for _, input := range data.Input {
-		inputs = append(inputs, TableInput(input))
+	var inputs []TableInput
+	if len(data.Inputs) > 0 {
+		inputs = make([]TableInput, 0, len(data.Inputs))
+		for _, input := range data.Inputs {
+			inputs = append(inputs, TableInput(input))
+		}
+	}
+
+	var partitions []TablePartition
+	if len(data.Partitions) > 0 {
+		partitions = make([]TablePartition, 0, len(data.Partitions))
+		for _, partition := range data.Partitions {
+			partitions = append(partitions, TablePartition(partition))
+		}
 	}
 
 	database, table := data.Database.ValueString(), data.Table.ValueString()
-	err = r.client.SetTable(ctx, region, database, table, inputs)
+
+	err = r.client.SetTable(ctx, region, database, TableDescription{
+		Name:         table,
+		Input:        inputs,
+		Partitions:   partitions,
+		BetaFeatures: data.BetaFeatures,
+		SkipBackfill: data.SkipBackfill.ValueBool(),
+	})
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Cannot create table",
@@ -234,9 +304,20 @@ func (r *tableResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	database := parts[2]
 	table := parts[3]
 
-	inputs := make([]TableInput, 0, len(data.Input))
-	for _, input := range data.Input {
-		inputs = append(inputs, TableInput(input))
+	var inputs []TableInput
+	if len(data.Inputs) > 0 {
+		inputs = make([]TableInput, 0, len(data.Inputs))
+		for _, input := range data.Inputs {
+			inputs = append(inputs, TableInput(input))
+		}
+	}
+
+	var partitions []TablePartition
+	if len(data.Partitions) > 0 {
+		partitions = make([]TablePartition, 0, len(data.Partitions))
+		for _, partition := range data.Partitions {
+			partitions = append(partitions, TablePartition(partition))
+		}
 	}
 
 	tenantInfo, err := r.client.Tenant(ctx, region)
@@ -255,7 +336,13 @@ func (r *tableResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		return
 	}
 
-	err = r.client.SetTable(ctx, region, database, table, inputs)
+	err = r.client.SetTable(ctx, region, database, TableDescription{
+		Name:         table,
+		Input:        inputs,
+		Partitions:   partitions,
+		BetaFeatures: data.BetaFeatures,
+		SkipBackfill: data.SkipBackfill.ValueBool(),
+	})
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Cannot update table",

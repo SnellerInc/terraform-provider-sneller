@@ -33,12 +33,15 @@ resource "sneller_table" "test" {
 ### Required
 
 - `database` (String) Database name.
-- `input` (Attributes List) The input definition specifies where the source data is located and it format. (see [below for nested schema](#nestedatt--input))
+- `inputs` (Attributes List) The input definition specifies where the source data is located and it format. (see [below for nested schema](#nestedatt--inputs))
 - `table` (String) Table name.
 
 ### Optional
 
+- `beta_features` (List of String) List of feature flags that can be used to turn on features for beta-testing.
+- `partitions` (Attributes List) Synthetic field that is generated from parts of an input URI and used to partition table data.. (see [below for nested schema](#nestedatt--partitions))
 - `region` (String) Region where the table should be created. If not set, then the table is created in the tenant's home region.
+- `skip_backfill` (Boolean) Skip scanning the source bucket(s) for matching objects when the first objects are inserted into the table.
 
 ### Read-Only
 
@@ -46,13 +49,26 @@ resource "sneller_table" "test" {
 - `last_updated` (String) Timestamp of the last Terraform update.
 - `location` (String) S3 url of the database location (i.e. `s3://sneller-cache-bucket/db/test-db/test-table/`).
 
-<a id="nestedatt--input"></a>
-### Nested Schema for `input`
+<a id="nestedatt--inputs"></a>
+### Nested Schema for `inputs`
 
 Required:
 
 - `format` (String) Format of the input data (`json`, `json.gz`, `json.zst`, `cloudtrail.json.gz`, `csv`, `csv.gz`, `csv.zst`, `tsv`, `tsv.gz`, `tsv.zst`).
 - `pattern` (String) Pattern definition to specify the source pattern (i.e. `s3://sneller-source-bucket/data/*.ndjson`).
+
+
+<a id="nestedatt--partitions"></a>
+### Nested Schema for `partitions`
+
+Required:
+
+- `field` (String) Name of the partition field. If this field conflicts with a field in the input data, the partition field will override it.
+
+Optional:
+
+- `type` (String) Type of the partition field.
+- `value` (String) Template string that is used to produce the value for the partition field. If this is empty (or not set), the field name is used to determine the input URI part that will be used to determine the value.
 
 ## Import
 

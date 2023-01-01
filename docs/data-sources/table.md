@@ -33,16 +33,29 @@ data "sneller_table" "test" {
 
 ### Read-Only
 
+- `beta_features` (List of String) List of feature flags that can be used to turn on features for beta-testing.
 - `id` (String) Terraform identifier.
-- `input` (Attributes List) The input definition specifies where the source data is located and it format. (see [below for nested schema](#nestedatt--input))
+- `inputs` (Attributes List) The input definition specifies where the source data is located and it format. (see [below for nested schema](#nestedatt--inputs))
 - `location` (String) S3 url where the table is stored (i.e. `s3://sneller-cache-bucket/db/test-db/test-table/`).
+- `partitions` (Attributes List) Synthetic field that is generated from parts of an input URI and used to partition table data.. (see [below for nested schema](#nestedatt--partitions))
+- `skip_backfill` (Boolean) Skip scanning the source bucket(s) for matching objects when the first objects are inserted into the table.
 
-<a id="nestedatt--input"></a>
-### Nested Schema for `input`
+<a id="nestedatt--inputs"></a>
+### Nested Schema for `inputs`
 
 Read-Only:
 
 - `format` (String) Format of the input data (`json`, `json.gz`, `json.zst`, `cloudtrail.json.gz`, `csv`, `csv.gz`, `csv.zst`, `tsv`, `tsv.gz`, `tsv.zst`).
 - `pattern` (String) Pattern definition to specify the source pattern (i.e. `s3://sneller-source-bucket/data/*.ndjson`).
+
+
+<a id="nestedatt--partitions"></a>
+### Nested Schema for `partitions`
+
+Read-Only:
+
+- `field` (String) Name of the partition field. If this field conflicts with a field in the input data, the partition field will override it.
+- `type` (String) Type of the partition field.
+- `value` (String) Template string that is used to produce the value for the partition field.
 
 

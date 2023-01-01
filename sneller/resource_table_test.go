@@ -29,7 +29,7 @@ func TestAccResourceTable(t *testing.T) {
 						database = "` + databaseName + `"
 						table    = "` + tableName + `"
 					  
-						input = [
+						inputs = [
 							{
 								pattern = "s3://` + bucket1Name + `/data/*.ndjson"
 								format  = "json"
@@ -39,17 +39,23 @@ func TestAccResourceTable(t *testing.T) {
 								format  = "json"
 							},
 						]
+
+						beta_features = ["zion"]
+						skip_backfill = true
 					}`,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "id", fmt.Sprintf("%s/%s/%s/%s", snellerTenantID, defaultSnellerRegion, databaseName, tableName)),
 					resource.TestCheckResourceAttr(resourceName, "database", databaseName),
 					resource.TestCheckResourceAttr(resourceName, "table", tableName),
 					resource.TestCheckResourceAttr(resourceName, "location", fmt.Sprintf("s3://%s/db/%s/%s/", bucket1Name, databaseName, tableName)),
-					resource.TestCheckResourceAttr(resourceName, "input.#", "2"),
-					resource.TestCheckResourceAttr(resourceName, "input.0.pattern", "s3://"+bucket1Name+"/data/*.ndjson"),
-					resource.TestCheckResourceAttr(resourceName, "input.0.format", "json"),
-					resource.TestCheckResourceAttr(resourceName, "input.1.pattern", "s3://"+bucket2Name+"/data/*.ndjson"),
-					resource.TestCheckResourceAttr(resourceName, "input.1.format", "json"),
+					resource.TestCheckResourceAttr(resourceName, "inputs.#", "2"),
+					resource.TestCheckResourceAttr(resourceName, "inputs.0.pattern", "s3://"+bucket1Name+"/data/*.ndjson"),
+					resource.TestCheckResourceAttr(resourceName, "inputs.0.format", "json"),
+					resource.TestCheckResourceAttr(resourceName, "inputs.1.pattern", "s3://"+bucket2Name+"/data/*.ndjson"),
+					resource.TestCheckResourceAttr(resourceName, "inputs.1.format", "json"),
+					resource.TestCheckResourceAttr(resourceName, "beta_features.#", "1"),
+					resource.TestCheckResourceAttr(resourceName, "beta_features.0", "zion"),
+					resource.TestCheckResourceAttr(resourceName, "skip_backfill", "true"),
 					resource.TestCheckResourceAttrSet(resourceName, "last_updated"),
 				),
 			},
@@ -68,7 +74,7 @@ func TestAccResourceTable(t *testing.T) {
 						database = "` + databaseName + `"
 						table    = "` + tableName + `"
 					  
-						input = [
+						inputs = [
 							{
 								pattern = "s3://` + bucket2Name + `/data/*.ndjson"
 								format  = "json.gz"
@@ -80,9 +86,11 @@ func TestAccResourceTable(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "database", databaseName),
 					resource.TestCheckResourceAttr(resourceName, "table", tableName),
 					resource.TestCheckResourceAttr(resourceName, "location", fmt.Sprintf("s3://%s/db/%s/%s/", bucket1Name, databaseName, tableName)),
-					resource.TestCheckResourceAttr(resourceName, "input.#", "1"),
-					resource.TestCheckResourceAttr(resourceName, "input.0.pattern", "s3://"+bucket2Name+"/data/*.ndjson"),
-					resource.TestCheckResourceAttr(resourceName, "input.0.format", "json.gz"),
+					resource.TestCheckResourceAttr(resourceName, "inputs.#", "1"),
+					resource.TestCheckResourceAttr(resourceName, "inputs.0.pattern", "s3://"+bucket2Name+"/data/*.ndjson"),
+					resource.TestCheckResourceAttr(resourceName, "inputs.0.format", "json.gz"),
+					resource.TestCheckNoResourceAttr(resourceName, "beta_features"),
+					resource.TestCheckResourceAttr(resourceName, "skip_backfill", "false"),
 					resource.TestCheckResourceAttrSet(resourceName, "last_updated"),
 				),
 			},

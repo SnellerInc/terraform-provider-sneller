@@ -23,7 +23,7 @@ func TestAccDataSourceTable(t *testing.T) {
 			database = "testdb"
 			table    = "test-table"
 
-			input = [
+			inputs = [
 				{
 					pattern = "s3://` + bucket1Name + `/*.ndjson"
 					format  = "json"
@@ -56,11 +56,11 @@ func TestAccDataSourceTable(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "database", "testdb"),
 					resource.TestCheckResourceAttr(resourceName, "table", "test-table"),
 					resource.TestCheckResourceAttr(resourceName, "location", fmt.Sprintf("s3://%s/%s%s/%s/", bucket1Name, defaultDbPrefix, "testdb", "test-table")),
-					resource.TestCheckResourceAttr(resourceName, "input.#", "2"),
-					resource.TestCheckResourceAttr(resourceName, "input.0.pattern", "s3://"+bucket1Name+"/*.ndjson"),
-					resource.TestCheckResourceAttr(resourceName, "input.0.format", "json"),
-					resource.TestCheckResourceAttr(resourceName, "input.1.pattern", "s3://"+bucket2Name+"/*.ndjson.gz"),
-					resource.TestCheckResourceAttr(resourceName, "input.1.format", "json.gz"),
+					resource.TestCheckResourceAttr(resourceName, "inputs.#", "2"),
+					resource.TestCheckResourceAttr(resourceName, "inputs.0.pattern", "s3://"+bucket1Name+"/*.ndjson"),
+					resource.TestCheckResourceAttr(resourceName, "inputs.0.format", "json"),
+					resource.TestCheckResourceAttr(resourceName, "inputs.1.pattern", "s3://"+bucket2Name+"/*.ndjson.gz"),
+					resource.TestCheckResourceAttr(resourceName, "inputs.1.format", "json.gz"),
 				),
 			},
 		},

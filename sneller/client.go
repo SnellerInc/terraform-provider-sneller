@@ -225,8 +225,11 @@ func (c *Client) Database(ctx context.Context, region, database string) ([]Table
 }
 
 type TableDescription struct {
-	Name  string       `json:"name"`
-	Input []TableInput `json:"input"`
+	Name         string           `json:"name"`
+	Input        []TableInput     `json:"input"`
+	Partitions   []TablePartition `json:"partitions,omitempty"`
+	BetaFeatures []string         `json:"beta_features,omitempty"`
+	SkipBackfill bool             `json:"skip_backfill,omitempty"`
 }
 
 type TableInput struct {
@@ -234,12 +237,15 @@ type TableInput struct {
 	Format  string `json:"format"`
 }
 
-func (c *Client) SetTable(ctx context.Context, region, database, table string, input []TableInput) error {
-	req := c.url(ctx, http.MethodPut, region, fmt.Sprintf("/db/%s/table/%s/definition", database, table))
-	body, err := json.Marshal(TableDescription{
-		Name:  table,
-		Input: input,
-	})
+type TablePartition struct {
+	Field string `json:"field"`
+	Type  string `json:"type,omitempty"`
+	Value string `json:"value,omitempty"`
+}
+
+func (c *Client) SetTable(ctx context.Context, region, database string, table TableDescription) error {
+	req := c.url(ctx, http.MethodPut, region, fmt.Sprintf("/db/%s/table/%s/definition", database, table.Name))
+	body, err := json.Marshal(table)
 	if err != nil {
 		return err
 	}
