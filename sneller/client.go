@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -123,6 +124,153 @@ func (c *Client) Tenant(ctx context.Context, region string) (*TenantInfo, error)
 	}
 
 	return &tenantInfo, nil
+}
+
+type User struct {
+	UserID      string
+	Email       string
+	IsEnabled   bool
+	IsFederated bool
+	Locale      string
+	GivenName   string
+	FamilyName  string
+	Picture     string
+	Groups      []string // only returned when fetching user details
+}
+
+func (c *Client) Users(ctx context.Context) ([]User, error) {
+	resp, err := c.client().Do(c.url(ctx, http.MethodGet, "", "/user"))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		msg, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("HTTP status %d: %s", resp.StatusCode, msg)
+	}
+
+	var users []User
+	if err := json.NewDecoder(resp.Body).Decode(&users); err != nil {
+		return nil, err
+	}
+
+	return users, nil
+}
+
+func (c *Client) User(ctx context.Context, userID string) (*User, error) {
+	resp, err := c.client().Do(c.url(ctx, http.MethodGet, "", fmt.Sprintf("/user/%s", userID)))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		msg, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("HTTP status %d: %s", resp.StatusCode, msg)
+	}
+
+	var user User
+	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func (c *Client) CreateUser(ctx context.Context, email string, isAdmin bool, locale, givenName, familyName *string) (string, error) {
+	req := c.url(ctx, http.MethodPost, "", "/user")
+	q, err := url.ParseQuery(req.URL.RawQuery)
+	if err != nil {
+		return "", err
+	}
+	q.Set("email", email)
+	if isAdmin {
+		q.Set("isAdmin", "true")
+	}
+	if locale != nil && *locale != "" {
+		q.Set("locale", *locale)
+	}
+	if givenName != nil && *givenName != "" {
+		q.Set("givenName", *givenName)
+	}
+	if familyName != nil && *familyName != "" {
+		q.Set("familyName", *familyName)
+	}
+	req.URL.RawQuery = q.Encode()
+
+	resp, err := c.client().Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		msg, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("HTTP status %d: %s", resp.StatusCode, msg)
+	}
+
+	var userID string
+	if err := json.NewDecoder(resp.Body).Decode(&userID); err != nil {
+		return "", err
+	}
+
+	return userID, nil
+}
+
+func (c *Client) UpdateUser(ctx context.Context, userID string, email *string, isEnabled, isAdmin *bool, locale, givenName, familyName *string) error {
+	req := c.url(ctx, http.MethodPatch, "", fmt.Sprintf("/user/%s", userID))
+	q, err := url.ParseQuery(req.URL.RawQuery)
+	if err != nil {
+		return err
+	}
+	if isEnabled != nil {
+		q.Set("isEnabled", strconv.FormatBool(*isEnabled))
+	}
+	if isAdmin != nil {
+		q.Set("isAdmin", strconv.FormatBool(*isAdmin))
+	}
+	if email != nil {
+		q.Set("email", *email)
+	}
+	if locale != nil {
+		q.Set("locale", *locale)
+	}
+	if givenName != nil {
+		q.Set("givenName", *givenName)
+	}
+	if familyName != nil {
+		q.Set("familyName", *familyName)
+	}
+	req.URL.RawQuery = q.Encode()
+
+	resp, err := c.client().Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		msg, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("HTTP status %d: %s", resp.StatusCode, msg)
+	}
+
+	return nil
+}
+
+func (c *Client) DeleteUser(ctx context.Context, userID string) error {
+	resp, err := c.client().Do(c.url(ctx, http.MethodDelete, "", fmt.Sprintf("/user/%s", userID)))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		msg, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("HTTP status %d: %s", resp.StatusCode, msg)
+	}
+
+	return nil
 }
 
 func (c *Client) SetBucket(ctx context.Context, region, bucket, roleARN string) error {

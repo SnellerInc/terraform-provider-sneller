@@ -123,19 +123,22 @@ func (p *snellerProvider) Configure(ctx context.Context, req provider.ConfigureR
 
 func (p *snellerProvider) Resources(context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
-		NewTenantRegionResource,
-		NewTableResource,
 		NewElasticProxyResource,
+		NewTableResource,
+		NewTenantRegionResource,
+		NewUserResource,
 	}
 }
 
 func (p *snellerProvider) DataSources(context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
-		NewTenantDataSource,
-		NewTenantRegionDataSource,
 		NewDatabasesDataSource,
 		NewDatabaseDataSource,
-		NewTableDataSource,
 		NewElasticProxyDataSource,
+		NewTableDataSource,
+		NewTenantDataSource,
+		NewTenantRegionDataSource,
+		NewUserDataSource,
+		NewUsersDataSource,
 	}
 }
