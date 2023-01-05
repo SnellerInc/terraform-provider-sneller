@@ -57,6 +57,80 @@ Required:
 - `format` (String) Format of the input data (`json`, `json.gz`, `json.zst`, `cloudtrail.json.gz`, `csv`, `csv.gz`, `csv.zst`, `tsv`, `tsv.gz`, `tsv.zst`).
 - `pattern` (String) Pattern definition to specify the source pattern (i.e. `s3://sneller-source-bucket/data/*.ndjson`).
 
+Optional:
+
+- `csv_hints` (Attributes Map) Ingestion hints for CSV input. (see [below for nested schema](#nestedatt--inputs--csv_hints))
+- `json_hints` (Attributes List) Ingestion hints for JSON input. (see [below for nested schema](#nestedatt--inputs--json_hints))
+- `tsv_hints` (Attributes Map) Ingestion hints for TSV input. (see [below for nested schema](#nestedatt--inputs--tsv_hints))
+
+<a id="nestedatt--inputs--csv_hints"></a>
+### Nested Schema for `inputs.csv_hints`
+
+Optional:
+
+- `fields` (Attributes List) specify hints for each field. (see [below for nested schema](#nestedatt--inputs--csv_hints--fields))
+- `missing_values` (List of String) list of values that represent a missing value.
+- `separator` (String) specify a custom separator (defaults to `,`).
+- `skip_records` (Number) skip the first *N* records (useful when headers are used).
+
+<a id="nestedatt--inputs--csv_hints--fields"></a>
+### Nested Schema for `inputs.csv_hints.fields`
+
+Required:
+
+- `name` (String) Field-name (use dots to make it a subfield)
+
+Optional:
+
+- `allow_empty` (Boolean) Allow empty values (only valid for strings) to be ingested. If flag is set to false, then the field won't be written for the record instead.
+- `default` (String) Default value if the column is an empty string
+- `false_values` (List of String) Optional list of values that represent FALSE (only valid for bool type).
+- `format` (String) Ingestion format (i.e. different data formats)
+- `missing_values` (List of String) Optional list of values that represents a missing value.
+- `no_index` (Boolean) ADon't use sparse-indexing for this value (only valid for date-time type).
+- `true_values` (List of String) Optional list of values that represent TRUE (only valid for bool type).
+- `type` (String) Type of field (or ignore)
+
+
+
+<a id="nestedatt--inputs--json_hints"></a>
+### Nested Schema for `inputs.json_hints`
+
+Required:
+
+- `field` (String) Field name.
+- `hints` (List of String) Hints.
+
+
+<a id="nestedatt--inputs--tsv_hints"></a>
+### Nested Schema for `inputs.tsv_hints`
+
+Optional:
+
+- `fields` (Attributes List) specify hints for each field. (see [below for nested schema](#nestedatt--inputs--tsv_hints--fields))
+- `missing_values` (List of String) list of values that represent a missing value.
+- `skip_records` (Number) skip the first *N* records (useful when headers are used).
+
+<a id="nestedatt--inputs--tsv_hints--fields"></a>
+### Nested Schema for `inputs.tsv_hints.fields`
+
+Required:
+
+- `name` (String) Field-name (use dots to make it a subfield)
+
+Optional:
+
+- `allow_empty` (Boolean) Allow empty values (only valid for strings) to be ingested. If flag is set to false, then the field won't be written for the record instead.
+- `default` (String) Default value if the column is an empty string
+- `false_values` (List of String) Optional list of values that represent FALSE (only valid for bool type).
+- `format` (String) Ingestion format (i.e. different data formats)
+- `missing_values` (List of String) Optional list of values that represents a missing value.
+- `no_index` (Boolean) ADon't use sparse-indexing for this value (only valid for date-time type).
+- `true_values` (List of String) Optional list of values that represent TRUE (only valid for bool type).
+- `type` (String) Type of field (or ignore)
+
+
+
 
 <a id="nestedatt--partitions"></a>
 ### Nested Schema for `partitions`

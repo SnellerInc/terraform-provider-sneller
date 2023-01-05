@@ -4,10 +4,9 @@ import (
 	"context"
 	"flag"
 	"log"
+	"terraform-provider-sneller/sneller/provider"
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
-
-	"terraform-provider-sneller/sneller"
 )
 
 // Provider documentation generation.
@@ -19,7 +18,7 @@ func main() {
 	flag.BoolVar(&debug, "debug", false, "set to true to run the provider with support for debuggers like delve")
 	flag.Parse()
 
-	err := providerserver.Serve(context.Background(), sneller.New, providerserver.ServeOpts{
+	err := providerserver.Serve(context.Background(), provider.New, providerserver.ServeOpts{
 		Address:         "registry.terraform.io/SnellerInc/sneller",
 		Debug:           debug,
 		ProtocolVersion: 6,
