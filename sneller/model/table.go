@@ -242,7 +242,7 @@ type TableInputXSVHintsFieldModel struct {
 }
 
 type TablePartitionModel struct {
-	Field string `tfsdk:"field" json:"field"`
-	Type  string `tfsdk:"type" json:"type,omitempty"`
-	Value string `tfsdk:"value" json:"type,value"`
+	Field string  `tfsdk:"field" json:"field"`
+	Type  *string `tfsdk:"type" json:"type,omitempty"`
+	Value *string `tfsdk:"value" json:"value,omitempty"`
 }

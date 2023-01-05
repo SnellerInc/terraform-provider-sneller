@@ -66,27 +66,27 @@ func (r *userResource) Schema(ctx context.Context, req resource.SchemaRequest, r
 				Computed:    true,
 			},
 			"email": schema.StringAttribute{
-				Description: "Email address.",
+				Description: "Email address of the user.",
 				Required:    true,
 			},
 			"is_enabled": schema.BoolAttribute{
-				Description:   "User enabled.",
+				Description:   "Flag indicating whether the user is enabled.",
 				Optional:      true,
 				Computed:      true,
 				PlanModifiers: []planmodifier.Bool{BoolDefaultValue(true)},
 			},
 			"is_admin": schema.BoolAttribute{
-				Description:   "Administrator.",
+				Description:   "Flag indicating whether the user is an administrator.",
 				Optional:      true,
 				Computed:      true,
 				PlanModifiers: []planmodifier.Bool{BoolDefaultValue(false)},
 			},
 			"is_federated": schema.BoolAttribute{
-				Description: "User is using a federated identity provider.",
+				Description: "Flag indicating whether the user is using an federated identity provider.",
 				Computed:    true,
 			},
 			"locale": schema.StringAttribute{
-				Description:   "User's locale.",
+				Description:   "User's locale (i.e. `en-US`).",
 				Optional:      true,
 				Computed:      true,
 				PlanModifiers: []planmodifier.String{StringDefaultValue("")},

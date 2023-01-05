@@ -21,13 +21,13 @@ Obtains a specific Sneller user.
 
 ### Read-Only
 
-- `email` (String) Email address.
+- `email` (String) Email address of the user.
 - `family_name` (String) User's family name.
 - `given_name` (String) User's given name.
 - `id` (String) Terraform identifier.
-- `is_admin` (Boolean) Administrator.
-- `is_enabled` (Boolean) User enabled.
-- `is_federated` (Boolean) User is using a federated identity provider.
-- `locale` (String) User's locale.
+- `is_admin` (Boolean) Flag indicating whether the user is an administrator.
+- `is_enabled` (Boolean) Flag indicating whether the user is enabled.
+- `is_federated` (Boolean) Flag indicating whether the user is using an federated identity provider.
+- `locale` (String) User's locale (i.e. `en-US`).
 
 

@@ -44,7 +44,7 @@ type tableResourceModel struct {
 	Inputs       []model.TableInputModel     `tfsdk:"inputs" json:"input"`
 	Partitions   []model.TablePartitionModel `tfsdk:"partitions" json:"partitions,omitempty"`
 	BetaFeatures []string                    `tfsdk:"beta_features" json:"beta_features,omitempty"`
-	SkipBackfill *bool                       `tfsdk:"skip_backfill" json:"skip_backfill,omitempty"`
+	SkipBackfill bool                        `tfsdk:"skip_backfill" json:"skip_backfill,omitempty"`
 }
 
 func (r *tableResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -127,9 +127,13 @@ func (r *tableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 				Computed:    true,
 			},
 			"region": schema.StringAttribute{
-				Description:   "Region where the table should be created. If not set, then the table is created in the tenant's home region.",
-				Optional:      true,
-				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
+				Description: "Region where the table should be created. If not set, then the table is created in the tenant's home region.",
+				Optional:    true,
+				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"database": schema.StringAttribute{
 				Description:   "Database name.",
@@ -222,10 +226,8 @@ func (r *tableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 							Required:    true,
 						},
 						"type": schema.StringAttribute{
-							Description:   "Type of the partition field.",
-							Optional:      true,
-							Computed:      true,
-							PlanModifiers: []planmodifier.String{StringDefaultValue("string")},
+							Description: "Type of the partition field.",
+							Optional:    true,
 						},
 						"value": schema.StringAttribute{
 							Description: "Template string that is used to produce the value for the partition field. If this is empty (or not set), the field name is used to determine the input URI part that will be used to determine the value.",
@@ -364,6 +366,7 @@ func (r *tableResource) Create(ctx context.Context, req resource.CreateRequest, 
 
 	data.ID = types.StringValue(fmt.Sprintf("%s/%s/%s/%s", tenantInfo.TenantID, region, database, table))
 	data.LastUpdated = types.StringValue(time.Now().Format(time.RFC850))
+	data.Region = types.StringValue(region)
 	data.Location = types.StringValue(fmt.Sprintf("%s/db/%s/%s/", tenantInfo.Regions[region].Bucket, database, table))
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)

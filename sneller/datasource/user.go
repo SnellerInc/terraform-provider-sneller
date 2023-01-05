@@ -54,23 +54,23 @@ func (d *userDataSource) Schema(ctx context.Context, req datasource.SchemaReques
 				Required:    true,
 			},
 			"email": schema.StringAttribute{
-				Description: "Email address.",
+				Description: "Email address of the user.",
 				Computed:    true,
 			},
 			"is_enabled": schema.BoolAttribute{
-				Description: "User enabled.",
+				Description: "Flag indicating whether the user is enabled.",
 				Computed:    true,
 			},
 			"is_admin": schema.BoolAttribute{
-				Description: "Administrator.",
+				Description: "Flag indicating whether the user is an administrator.",
 				Computed:    true,
 			},
 			"is_federated": schema.BoolAttribute{
-				Description: "User is using a federated identity provider.",
+				Description: "Flag indicating whether the user is using an federated identity provider.",
 				Computed:    true,
 			},
 			"locale": schema.StringAttribute{
-				Description: "User's locale.",
+				Description: "User's locale (i.e. `en-US`).",
 				Computed:    true,
 			},
 			"given_name": schema.StringAttribute{

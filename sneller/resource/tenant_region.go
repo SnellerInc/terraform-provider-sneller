@@ -64,6 +64,7 @@ func (r *tenantRegionResource) Schema(ctx context.Context, req resource.SchemaRe
 			"region": schema.StringAttribute{
 				Description:   "Region from which to fetch the tenant configuration. When not set, then it default's to the tenant's home region.",
 				Optional:      true,
+				Computed:      true,
 				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
 			"bucket": schema.StringAttribute{
@@ -177,9 +178,20 @@ func (r *tenantRegionResource) Create(ctx context.Context, req resource.CreateRe
 	}
 
 	region := data.Region.ValueString()
+	if region == "" {
+		tenantInfo, err := r.client.Tenant(ctx, "")
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Cannot get tenant info",
+				fmt.Sprintf("Unable to get tenant info in region %s: %v", region, err.Error()),
+			)
+			return
+		}
+		region = tenantInfo.HomeRegion
+	}
+
 	bucket := data.Bucket.ValueString()
 	roleARN := data.RoleARN.ValueString()
-
 	err := r.client.SetBucket(ctx, region, "s3://"+bucket, roleARN)
 	if err != nil {
 		resp.Diagnostics.AddError(

@@ -5,8 +5,27 @@ resource "sneller_table" "test" {
   database = "test-db"
   table    = "test-table"
 
-  input {
-    pattern = "s3://sneller-source-data/data/*.ndjson"
-    format  = "json"
-  }
+  inputs = [
+    {
+      pattern = "s3://sneller-source-data/data/{tenant}/{yyyy}/{mm}/{dd}/*.ndjson"
+      format  = "json"
+
+      json_hints =  [
+        {
+          field = "timestamp", 
+          hints = ["unix_nano_seconds"]
+        }
+      ]
+    }
+  ]
+
+  partitions = [
+    {
+      field = "tenant"
+    },{
+      field = "date"
+      type  = "datetime"
+      value = "{yyyy}-{mm}-{dd}T00:00:00Z"
+    }
+  ]
 }

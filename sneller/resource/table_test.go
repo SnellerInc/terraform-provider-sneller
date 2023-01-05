@@ -31,13 +31,13 @@ func TestAccResourceTable(t *testing.T) {
 					  
 						inputs = [
 							{
-								pattern    = "s3://` + acctest.Bucket1Name + `/data/*.ndjson"
+								pattern    = "s3://` + acctest.Bucket1Name + `/data/{tenant}/{yyyy}/{mm}/{dd}/*.ndjson"
 								format     = "json"
 								json_hints = [
 									{
 										field = "path.to.value.a"
 										hints = ["ignore"]
-									}, {
+									},{
 										field = "endTimestamp"
 										hints = ["no_index","RFC3339Nano"]
 									}
@@ -49,6 +49,17 @@ func TestAccResourceTable(t *testing.T) {
 							},
 						]
 
+						partitions = [
+							{
+								field = "tenant"
+							},
+							{
+								field = "date"
+								type  = "datetime"
+								value = "{yyyy}-{mm}-{dd}:00:00:00Z"
+							}
+						]
+
 						beta_features = ["zion"]
 						skip_backfill = true
 					}`,
@@ -58,7 +69,7 @@ func TestAccResourceTable(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "table", acctest.TableName),
 					resource.TestCheckResourceAttr(resourceName, "location", fmt.Sprintf("s3://%s/db/%s/%s/", acctest.Bucket1Name, acctest.DatabaseName, acctest.TableName)),
 					resource.TestCheckResourceAttr(resourceName, "inputs.#", "2"),
-					resource.TestCheckResourceAttr(resourceName, "inputs.0.pattern", "s3://"+acctest.Bucket1Name+"/data/*.ndjson"),
+					resource.TestCheckResourceAttr(resourceName, "inputs.0.pattern", "s3://"+acctest.Bucket1Name+"/data/{tenant}/{yyyy}/{mm}/{dd}/*.ndjson"),
 					resource.TestCheckResourceAttr(resourceName, "inputs.0.format", "json"),
 					resource.TestCheckResourceAttr(resourceName, "inputs.0.json_hints.#", "2"),
 					resource.TestCheckResourceAttr(resourceName, "inputs.0.json_hints.0.field", "path.to.value.a"),
@@ -70,6 +81,11 @@ func TestAccResourceTable(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "inputs.0.json_hints.1.hints.1", "RFC3339Nano"),
 					resource.TestCheckResourceAttr(resourceName, "inputs.1.pattern", "s3://"+acctest.Bucket2Name+"/data/*.ndjson"),
 					resource.TestCheckResourceAttr(resourceName, "inputs.1.format", "json"),
+					resource.TestCheckResourceAttr(resourceName, "partitions.#", "2"),
+					resource.TestCheckResourceAttr(resourceName, "partitions.0.field", "tenant"),
+					resource.TestCheckResourceAttr(resourceName, "partitions.1.field", "date"),
+					resource.TestCheckResourceAttr(resourceName, "partitions.1.type", "datetime"),
+					resource.TestCheckResourceAttr(resourceName, "partitions.1.value", "{yyyy}-{mm}-{dd}:00:00:00Z"),
 					resource.TestCheckResourceAttr(resourceName, "beta_features.#", "1"),
 					resource.TestCheckResourceAttr(resourceName, "beta_features.0", "zion"),
 					resource.TestCheckResourceAttr(resourceName, "skip_backfill", "true"),

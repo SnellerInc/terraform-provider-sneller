@@ -20,7 +20,6 @@ func TestAccResourceTenantRegion(t *testing.T) {
 			{
 				Config: acctest.ProviderConfig + `
 					resource "sneller_tenant_region" "test" {
-						region         = "` + api.DefaultSnellerRegion + `"
 						bucket         = "` + acctest.Bucket1Name + `"
 						role_arn       = "` + acctest.Role1ARN + `"
 						max_scan_bytes = 123456789
@@ -28,7 +27,7 @@ func TestAccResourceTenantRegion(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "id", fmt.Sprintf("%s/%s", acctest.SnellerTenantID, api.DefaultSnellerRegion)),
 					resource.TestCheckResourceAttrSet(resourceName, "last_updated"),
-					resource.TestCheckResourceAttr(resourceName, "region", "us-east-1"),
+					resource.TestCheckResourceAttr(resourceName, "region", api.DefaultSnellerRegion),
 					resource.TestCheckResourceAttr(resourceName, "bucket", acctest.Bucket1Name),
 					resource.TestCheckResourceAttr(resourceName, "prefix", api.DefaultDbPrefix),
 					resource.TestCheckResourceAttr(resourceName, "role_arn", acctest.Role1ARN),
