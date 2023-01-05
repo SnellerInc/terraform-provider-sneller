@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"terraform-provider-sneller/sneller/api"
 	"terraform-provider-sneller/sneller/model"
@@ -35,16 +36,17 @@ type tableResource struct {
 }
 
 type tableResourceModel struct {
-	ID           types.String                `tfsdk:"id" json:"ignore"`
-	LastUpdated  types.String                `tfsdk:"last_updated" json:"ignore"`
-	Region       types.String                `tfsdk:"region" json:"ignore"`
-	Database     types.String                `tfsdk:"database" json:"ignore"`
-	Location     types.String                `tfsdk:"location" json:"ignore"`
-	Table        *string                     `tfsdk:"table" json:"name"`
-	Inputs       []model.TableInputModel     `tfsdk:"inputs" json:"input"`
-	Partitions   []model.TablePartitionModel `tfsdk:"partitions" json:"partitions,omitempty"`
-	BetaFeatures []string                    `tfsdk:"beta_features" json:"beta_features,omitempty"`
-	SkipBackfill bool                        `tfsdk:"skip_backfill" json:"skip_backfill,omitempty"`
+	ID              types.String                `tfsdk:"id" json:"ignore"`
+	LastUpdated     types.String                `tfsdk:"last_updated" json:"ignore"`
+	Region          types.String                `tfsdk:"region" json:"ignore"`
+	Database        types.String                `tfsdk:"database" json:"ignore"`
+	Location        types.String                `tfsdk:"location" json:"ignore"`
+	Table           *string                     `tfsdk:"table" json:"name"`
+	Inputs          []model.TableInputModel     `tfsdk:"inputs" json:"input"`
+	Partitions      []model.TablePartitionModel `tfsdk:"partitions" json:"partitions,omitempty"`
+	RetentionPolicy *model.TableRetentionModel  `tfsdk:"retention_policy" json:"retention_policy,omitempty"`
+	BetaFeatures    []string                    `tfsdk:"beta_features" json:"beta_features,omitempty"`
+	SkipBackfill    bool                        `tfsdk:"skip_backfill" json:"skip_backfill,omitempty"`
 }
 
 func (r *tableResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -232,6 +234,25 @@ func (r *tableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 						"value": schema.StringAttribute{
 							Description: "Template string that is used to produce the value for the partition field. If this is empty (or not set), the field name is used to determine the input URI part that will be used to determine the value.",
 							Optional:    true,
+						},
+					},
+				},
+			},
+			"retention_policy": schema.SingleNestedAttribute{
+				Description: "Synthetic field that is generated from parts of an input URI and used to partition table data.",
+				Optional:    true,
+				Attributes: map[string]schema.Attribute{
+					"field": schema.StringAttribute{
+						Description: "Path expression for the field used to determine the age of a record for the purpose of the data retention policy. Currently only timestamp fields are supported.",
+						Required:    true,
+					},
+					"valid_for": schema.StringAttribute{
+						Description:         "ValidFor is the validity window relative to now. This is a string with a format like '<n>y<n>m<n>d' where '<n>' is a number and any component can be omitted.",
+						MarkdownDescription: "ValidFor is the validity window relative to now. This is a string with a format like `<n>y<n>m<n>d` where `<n>` is a number and any component can be omitted.",
+						Required:            true,
+						Validators: []validator.String{
+							stringvalidator.RegexMatches(regexp.MustCompile("([0-9]+y)?([0-9]+m)?([0-9]+d)?"), "value must be '<n>y<n>m<n>d'  where '<n>' is a number and any component can be omitted."),
+							stringvalidator.LengthAtLeast(2),
 						},
 					},
 				},

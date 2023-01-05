@@ -43,6 +43,11 @@ resource "sneller_table" "test" {
       value = "{yyyy}-{mm}-{dd}T00:00:00Z"
     }
   ]
+
+  retention_policy = {
+    field     = "timestamp"
+    valid_for = "100d"
+  }
 }
 ```
 
@@ -60,6 +65,7 @@ resource "sneller_table" "test" {
 - `beta_features` (List of String) List of feature flags that can be used to turn on features for beta-testing.
 - `partitions` (Attributes List) Synthetic field that is generated from parts of an input URI and used to partition table data.. (see [below for nested schema](#nestedatt--partitions))
 - `region` (String) Region where the table should be created. If not set, then the table is created in the tenant's home region.
+- `retention_policy` (Attributes) Synthetic field that is generated from parts of an input URI and used to partition table data. (see [below for nested schema](#nestedatt--retention_policy))
 - `skip_backfill` (Boolean) Skip scanning the source bucket(s) for matching objects when the first objects are inserted into the table.
 
 ### Read-Only
@@ -162,6 +168,15 @@ Optional:
 
 - `type` (String) Type of the partition field.
 - `value` (String) Template string that is used to produce the value for the partition field. If this is empty (or not set), the field name is used to determine the input URI part that will be used to determine the value.
+
+
+<a id="nestedatt--retention_policy"></a>
+### Nested Schema for `retention_policy`
+
+Required:
+
+- `field` (String) Path expression for the field used to determine the age of a record for the purpose of the data retention policy. Currently only timestamp fields are supported.
+- `valid_for` (String) ValidFor is the validity window relative to now. This is a string with a format like `<n>y<n>m<n>d` where `<n>` is a number and any component can be omitted.
 
 ## Import
 

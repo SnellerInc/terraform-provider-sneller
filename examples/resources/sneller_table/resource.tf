@@ -28,4 +28,9 @@ resource "sneller_table" "test" {
       value = "{yyyy}-{mm}-{dd}T00:00:00Z"
     }
   ]
+
+  retention_policy = {
+    field     = "timestamp"
+    valid_for = "100d"
+  }
 }

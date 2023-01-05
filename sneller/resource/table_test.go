@@ -86,6 +86,7 @@ func TestAccResourceTable(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "partitions.1.field", "date"),
 					resource.TestCheckResourceAttr(resourceName, "partitions.1.type", "datetime"),
 					resource.TestCheckResourceAttr(resourceName, "partitions.1.value", "{yyyy}-{mm}-{dd}:00:00:00Z"),
+					resource.TestCheckNoResourceAttr(resourceName, "retention_policy"),
 					resource.TestCheckResourceAttr(resourceName, "beta_features.#", "1"),
 					resource.TestCheckResourceAttr(resourceName, "beta_features.0", "zion"),
 					resource.TestCheckResourceAttr(resourceName, "skip_backfill", "true"),
@@ -113,6 +114,11 @@ func TestAccResourceTable(t *testing.T) {
 								format  = "json.gz"
 							}
 						]
+
+						retention_policy = {
+							field     = "timestamp"
+							valid_for = "100d"
+						}
 					}`,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "id", fmt.Sprintf("%s/%s/%s/%s", acctest.SnellerTenantID, api.DefaultSnellerRegion, acctest.DatabaseName, acctest.TableName)),
@@ -122,6 +128,8 @@ func TestAccResourceTable(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "inputs.#", "1"),
 					resource.TestCheckResourceAttr(resourceName, "inputs.0.pattern", "s3://"+acctest.Bucket2Name+"/data/*.ndjson"),
 					resource.TestCheckResourceAttr(resourceName, "inputs.0.format", "json.gz"),
+					resource.TestCheckResourceAttr(resourceName, "retention_policy.field", "timestamp"),
+					resource.TestCheckResourceAttr(resourceName, "retention_policy.valid_for", "100d"),
 					resource.TestCheckNoResourceAttr(resourceName, "beta_features"),
 					resource.TestCheckResourceAttr(resourceName, "skip_backfill", "false"),
 					resource.TestCheckResourceAttrSet(resourceName, "last_updated"),

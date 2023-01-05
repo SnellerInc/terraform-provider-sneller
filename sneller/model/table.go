@@ -246,3 +246,8 @@ type TablePartitionModel struct {
 	Type  *string `tfsdk:"type" json:"type,omitempty"`
 	Value *string `tfsdk:"value" json:"value,omitempty"`
 }
+
+type TableRetentionModel struct {
+	Field    string `tfsdk:"field" json:"field"`
+	ValidFor string `tfsdk:"valid_for" json:"valid_for"`
+}

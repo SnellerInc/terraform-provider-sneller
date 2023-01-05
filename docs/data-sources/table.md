@@ -30,6 +30,7 @@ data "sneller_table" "test" {
 ### Optional
 
 - `region` (String) Region where the table is located. If not set, then the tenant's home region is assumed.
+- `retention_policy` (Attributes) Synthetic field that is generated from parts of an input URI and used to partition table data. (see [below for nested schema](#nestedatt--retention_policy))
 
 ### Read-Only
 
@@ -39,6 +40,15 @@ data "sneller_table" "test" {
 - `location` (String) S3 url where the table is stored (i.e. `s3://sneller-cache-bucket/db/test-db/test-table/`).
 - `partitions` (Attributes List) Synthetic field that is generated from parts of an input URI and used to partition table data.. (see [below for nested schema](#nestedatt--partitions))
 - `skip_backfill` (Boolean) Skip scanning the source bucket(s) for matching objects when the first objects are inserted into the table.
+
+<a id="nestedatt--retention_policy"></a>
+### Nested Schema for `retention_policy`
+
+Read-Only:
+
+- `field` (String) Path expression for the field used to determine the age of a record for the purpose of the data retention policy. Currently only timestamp fields are supported.
+- `valid_for` (String) ValidFor is the validity window relative to now. This is a string with a format like `<n>y<n>m<n>d` where `<n>` is a number and any component can be omitted.
+
 
 <a id="nestedatt--inputs"></a>
 ### Nested Schema for `inputs`
