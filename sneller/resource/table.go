@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -46,7 +47,7 @@ type tableResourceModel struct {
 	Partitions      []model.TablePartitionModel `tfsdk:"partitions" json:"partitions,omitempty"`
 	RetentionPolicy *model.TableRetentionModel  `tfsdk:"retention_policy" json:"retention_policy,omitempty"`
 	BetaFeatures    []string                    `tfsdk:"beta_features" json:"beta_features,omitempty"`
-	SkipBackfill    bool                        `tfsdk:"skip_backfill" json:"skip_backfill,omitempty"`
+	SkipBackfill    *bool                       `tfsdk:"skip_backfill" json:"skip_backfill,omitempty"`
 }
 
 func (r *tableResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -367,21 +368,7 @@ func (r *tableResource) Create(ctx context.Context, req resource.CreateRequest, 
 	}
 
 	database, table := data.Database.ValueString(), *data.Table
-	tableBytes, err := json.Marshal(data)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Cannot encode table configuration",
-			fmt.Sprintf("Unable to encode table configuration in region %s: %v", region, err.Error()),
-		)
-		return
-	}
-
-	err = r.client.SetTable(ctx, region, database, table, tableBytes)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Cannot create table",
-			fmt.Sprintf("Unable to create table %s/%s in region %s: %v", database, table, region, err.Error()),
-		)
+	if err = r.writeTable(ctx, data, region, database, table, resp.Diagnostics); err != nil {
 		return
 	}
 
@@ -430,21 +417,7 @@ func (r *tableResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		return
 	}
 
-	tableBytes, err := json.Marshal(data)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Cannot encode table configuration",
-			fmt.Sprintf("Unable to encode table configuration in region %s: %v", region, err.Error()),
-		)
-		return
-	}
-
-	err = r.client.SetTable(ctx, region, database, table, tableBytes)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Cannot update table",
-			fmt.Sprintf("Unable to update table %s/%s in region %s: %v", database, table, region, err.Error()),
-		)
+	if err = r.writeTable(ctx, data, region, database, table, resp.Diagnostics); err != nil {
 		return
 	}
 
@@ -504,4 +477,31 @@ func (r *tableResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 func (r *tableResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	// Retrieve import ID and save to id attribute
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
+}
+
+func (r *tableResource) writeTable(ctx context.Context, data tableResourceModel, region, database, table string, diags diag.Diagnostics) error {
+	copy := data
+	if copy.SkipBackfill != nil && !*copy.SkipBackfill {
+		// this prevents writing the `false` value
+		copy.SkipBackfill = nil
+	}
+	tableBytes, err := json.Marshal(&copy)
+	if err != nil {
+		diags.AddError(
+			"Cannot encode table configuration",
+			fmt.Sprintf("Unable to encode table configuration in region %s: %v", region, err.Error()),
+		)
+		return err
+	}
+
+	err = r.client.SetTable(ctx, region, database, table, tableBytes)
+	if err != nil {
+		diags.AddError(
+			"Cannot create table",
+			fmt.Sprintf("Unable to create table %s/%s in region %s: %v", database, table, region, err.Error()),
+		)
+		return err
+	}
+
+	return nil
 }

@@ -15,9 +15,10 @@ func TestAccDataSourceTenantRegion(t *testing.T) {
 	resourceName := "data.sneller_tenant_region.test"
 	baseConfig := acctest.ProviderConfig + `
 		resource "sneller_tenant_region" "test" {
-			region   = "` + api.DefaultSnellerRegion + `"
-			bucket   = "` + acctest.Bucket1Name + `"
-			role_arn = "` + acctest.Role1ARN + `"
+			region         = "` + api.DefaultSnellerRegion + `"
+			bucket         = "` + acctest.Bucket1Name + `"
+			role_arn       = "` + acctest.Role1ARN + `"
+			max_scan_bytes = 123456789
 		}`
 
 	resource.Test(t, resource.TestCase{
@@ -40,7 +41,8 @@ func TestAccDataSourceTenantRegion(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "prefix", api.DefaultDbPrefix),
 					resource.TestCheckResourceAttr(resourceName, "role_arn", acctest.Role1ARN),
 					resource.TestCheckResourceAttr(resourceName, "external_id", acctest.SnellerTenantID),
-					resource.TestCheckResourceAttr(resourceName, "max_scan_bytes", fmt.Sprintf("%d", DefaultMaxScanBytes)),
+					resource.TestCheckResourceAttr(resourceName, "max_scan_bytes", "123456789"),
+					resource.TestCheckResourceAttr(resourceName, "effective_max_scan_bytes", "123456789"),
 					resource.TestCheckResourceAttr(resourceName, "sqs_arn", fmt.Sprintf("arn:aws:sqs:%s:%s:tenant-sdb-%s", api.DefaultSnellerRegion, acctest.SnellerAccountID, acctest.SnellerTenantID)),
 				),
 			},

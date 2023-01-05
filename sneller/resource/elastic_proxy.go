@@ -81,7 +81,8 @@ func (r *elasticProxyResource) Schema(ctx context.Context, req resource.SchemaRe
 			},
 			"region": schema.StringAttribute{
 				Description:   "Region for which to configure the Elastic Proxy.",
-				Required:      true,
+				Optional:      true,
+				Computed:      true,
 				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
 			"location": schema.StringAttribute{
@@ -99,28 +100,40 @@ func (r *elasticProxyResource) Schema(ctx context.Context, req resource.SchemaRe
 				Optional:    true,
 				Attributes: map[string]schema.Attribute{
 					"log_request": schema.BoolAttribute{
-						Description: "Log all requests.",
-						Optional:    true,
+						Description:   "Log all requests.",
+						Optional:      true,
+						Computed:      true,
+						PlanModifiers: []planmodifier.Bool{BoolDefaultValue(false)},
 					},
 					"log_query_parameters": schema.BoolAttribute{
-						Description: "Log query parameters.",
-						Optional:    true,
+						Description:   "Log query parameters.",
+						Optional:      true,
+						Computed:      true,
+						PlanModifiers: []planmodifier.Bool{BoolDefaultValue(false)},
 					},
 					"log_sql": schema.BoolAttribute{
-						Description: "Log generated SQL query.",
-						Optional:    true,
+						Description:   "Log generated SQL query.",
+						Optional:      true,
+						Computed:      true,
+						PlanModifiers: []planmodifier.Bool{BoolDefaultValue(false)},
 					},
 					"log_sneller_result": schema.BoolAttribute{
-						Description: "Log Sneller query result (may be verbose and contain sensitive data).",
-						Optional:    true,
+						Description:   "Log Sneller query result (may be verbose and contain sensitive data).",
+						Optional:      true,
+						Computed:      true,
+						PlanModifiers: []planmodifier.Bool{BoolDefaultValue(false)},
 					},
 					"log_preprocessed": schema.BoolAttribute{
-						Description: "Log preprocessed Sneller results (may be verbose and contain sensitive data).",
-						Optional:    true,
+						Description:   "Log preprocessed Sneller results (may be verbose and contain sensitive data).",
+						Optional:      true,
+						Computed:      true,
+						PlanModifiers: []planmodifier.Bool{BoolDefaultValue(false)},
 					},
 					"log_result": schema.BoolAttribute{
-						Description: "Log result (may be verbose and contain sensitive data).",
-						Optional:    true,
+						Description:   "Log result (may be verbose and contain sensitive data).",
+						Optional:      true,
+						Computed:      true,
+						PlanModifiers: []planmodifier.Bool{BoolDefaultValue(false)},
 					},
 				},
 			},
@@ -309,6 +322,7 @@ func (r *elasticProxyResource) Create(ctx context.Context, req resource.CreateRe
 	}
 
 	data.ID = types.StringValue(fmt.Sprintf("%s/%s", tenantInfo.TenantID, region))
+	data.Region = types.StringValue(region)
 	data.LastUpdated = types.StringValue(time.Now().Format(time.RFC850))
 	data.Location = types.StringValue(fmt.Sprintf("%s/%selastic-proxy.json", tenantInfo.Regions[region].Bucket, api.DefaultDbPrefix))
 

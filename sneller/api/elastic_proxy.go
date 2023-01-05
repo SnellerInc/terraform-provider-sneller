@@ -5,8 +5,8 @@ import "encoding/json"
 type ElasticProxyConfig struct {
 	LogPath            string                               `json:"logPath"`
 	LogFlags           *ElasticProxyLogFlagsConfig          `json:"logFlags"`
-	Elastic            ElasticProxyElasticConfig            `json:"elastic,omitempty"`
-	Sneller            ElasticProxySnellerConfig            `json:"sneller,omitempty"`
+	Elastic            *ElasticProxyElasticConfig           `json:"elastic,omitempty"`
+	Sneller            *ElasticProxySnellerConfig           `json:"sneller,omitempty"`
 	Mapping            map[string]ElasticProxyMappingConfig `json:"mapping"`
 	CompareWithElastic bool                                 `json:"compareWithElastic,omitempty"`
 }
