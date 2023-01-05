@@ -9,6 +9,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
 
+const DefaultMaxScanBytes = 1024 * 1024 * 1024 * 1024 * 3
+
 func TestAccDataSourceTenantRegion(t *testing.T) {
 	resourceName := "data.sneller_tenant_region.test"
 	baseConfig := acctest.ProviderConfig + `
@@ -38,6 +40,7 @@ func TestAccDataSourceTenantRegion(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "prefix", api.DefaultDbPrefix),
 					resource.TestCheckResourceAttr(resourceName, "role_arn", acctest.Role1ARN),
 					resource.TestCheckResourceAttr(resourceName, "external_id", acctest.SnellerTenantID),
+					resource.TestCheckResourceAttr(resourceName, "max_scan_bytes", fmt.Sprintf("%d", DefaultMaxScanBytes)),
 					resource.TestCheckResourceAttr(resourceName, "sqs_arn", fmt.Sprintf("arn:aws:sqs:%s:%s:tenant-sdb-%s", api.DefaultSnellerRegion, acctest.SnellerAccountID, acctest.SnellerTenantID)),
 				),
 			},

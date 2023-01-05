@@ -32,14 +32,16 @@ type tenantRegionResource struct {
 }
 
 type tenantRegionResourceModel struct {
-	ID          types.String `tfsdk:"id"`
-	LastUpdated types.String `tfsdk:"last_updated"`
-	Region      types.String `tfsdk:"region"`
-	Bucket      types.String `tfsdk:"bucket"`
-	Prefix      types.String `tfsdk:"prefix"`
-	RoleARN     types.String `tfsdk:"role_arn"`
-	ExternalID  types.String `tfsdk:"external_id"`
-	SqsARN      types.String `tfsdk:"sqs_arn"`
+	ID                    types.String `tfsdk:"id"`
+	LastUpdated           types.String `tfsdk:"last_updated"`
+	Region                types.String `tfsdk:"region"`
+	Bucket                types.String `tfsdk:"bucket"`
+	Prefix                types.String `tfsdk:"prefix"`
+	RoleARN               types.String `tfsdk:"role_arn"`
+	ExternalID            types.String `tfsdk:"external_id"`
+	MaxScanBytes          types.Int64  `tfsdk:"max_scan_bytes"`
+	EffectiveMaxScanBytes types.Int64  `tfsdk:"effective_max_scan_bytes"`
+	SqsARN                types.String `tfsdk:"sqs_arn"`
 }
 
 func (r *tenantRegionResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -78,6 +80,14 @@ func (r *tenantRegionResource) Schema(ctx context.Context, req resource.SchemaRe
 			},
 			"external_id": schema.StringAttribute{
 				Description: "External ID (typically the same as the tenant ID) that is passed when assuming the IAM role",
+				Computed:    true,
+			},
+			"max_scan_bytes": schema.Int64Attribute{
+				Description: "Maximum number of bytes scanned per query",
+				Optional:    true,
+			},
+			"effective_max_scan_bytes": schema.Int64Attribute{
+				Description: "Effective maximum number of bytes scanned per query",
 				Computed:    true,
 			},
 			"sqs_arn": schema.StringAttribute{
@@ -149,6 +159,10 @@ func (r *tenantRegionResource) Read(ctx context.Context, req resource.ReadReques
 	data.Prefix = types.StringValue(api.DefaultDbPrefix)
 	data.RoleARN = types.StringValue(tenantRegionInfo.RegionRoleArn)
 	data.ExternalID = types.StringValue(tenantRegionInfo.RegionExternalID)
+	if tenantRegionInfo.MaxScanBytes != nil {
+		data.MaxScanBytes = types.Int64Value(int64(*tenantRegionInfo.MaxScanBytes))
+	}
+	data.EffectiveMaxScanBytes = types.Int64Value(int64(tenantRegionInfo.EffectiveMaxScanBytes))
 	data.SqsARN = types.StringValue(sqsARN)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
@@ -169,10 +183,21 @@ func (r *tenantRegionResource) Create(ctx context.Context, req resource.CreateRe
 	err := r.client.SetBucket(ctx, region, "s3://"+bucket, roleARN)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Cannot set tenant region configuration",
-			fmt.Sprintf("Unable to set tenant configuration in region %s: %v", region, err.Error()),
+			"Cannot set tenant region bucket",
+			fmt.Sprintf("Unable to set tenant bucket in region %s: %v", region, err.Error()),
 		)
 		return
+	}
+
+	if !data.MaxScanBytes.IsNull() && !data.MaxScanBytes.IsUnknown() {
+		_, err = r.client.SetMaxScanBytes(ctx, region, ptr(uint64(data.MaxScanBytes.ValueInt64())))
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Cannot set max-scan-bytes value",
+				fmt.Sprintf("Unable to set max-scan-bytes value in region %s: %v", region, err.Error()),
+			)
+			return
+		}
 	}
 
 	// refresh tenant information
@@ -203,6 +228,10 @@ func (r *tenantRegionResource) Create(ctx context.Context, req resource.CreateRe
 	data.Region = types.StringValue(region)
 	data.Prefix = types.StringValue(api.DefaultDbPrefix)
 	data.ExternalID = types.StringValue(tenantRegionInfo.RegionExternalID)
+	if tenantRegionInfo.MaxScanBytes != nil {
+		data.MaxScanBytes = types.Int64Value(int64(*tenantRegionInfo.MaxScanBytes))
+	}
+	data.EffectiveMaxScanBytes = types.Int64Value(int64(tenantRegionInfo.EffectiveMaxScanBytes))
 	data.SqsARN = types.StringValue(sqsARN)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
@@ -243,6 +272,8 @@ func (r *tenantRegionResource) Update(ctx context.Context, req resource.UpdateRe
 		return
 	}
 
+	tenantRegionInfo := tenantInfo.Regions[region]
+
 	bucket := data.Bucket.ValueString()
 	roleARN := data.RoleARN.ValueString()
 	err = r.client.SetBucket(ctx, region, "s3://"+bucket, roleARN)
@@ -254,6 +285,25 @@ func (r *tenantRegionResource) Update(ctx context.Context, req resource.UpdateRe
 		return
 	}
 
+	var maxScanBytes *uint64
+	if !data.MaxScanBytes.IsNull() && !data.MaxScanBytes.IsUnknown() {
+		maxScanBytes = ptr(uint64(data.MaxScanBytes.ValueInt64()))
+	}
+	currentMaxScanBytes := tenantRegionInfo.MaxScanBytes
+
+	if (maxScanBytes == nil && currentMaxScanBytes != nil) ||
+		(maxScanBytes != nil && currentMaxScanBytes == nil) ||
+		(maxScanBytes != nil && currentMaxScanBytes != nil && *maxScanBytes != *currentMaxScanBytes) {
+		_, err = r.client.SetMaxScanBytes(ctx, region, maxScanBytes)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Cannot set max-scan-bytes value",
+				fmt.Sprintf("Unable to set max-scan-bytes value in region %s: %v", region, err.Error()),
+			)
+			return
+		}
+	}
+
 	// refresh tenant information
 	tenantInfo, err = r.client.Tenant(ctx, region)
 	if err != nil {
@@ -263,7 +313,7 @@ func (r *tenantRegionResource) Update(ctx context.Context, req resource.UpdateRe
 		)
 		return
 	}
-	tenantRegionInfo := tenantInfo.Regions[region]
+	tenantRegionInfo = tenantInfo.Regions[region]
 
 	sqsARN := tenantRegionInfo.SqsArn
 	if tenantRegionInfo.SqsArn == "" {
@@ -280,6 +330,10 @@ func (r *tenantRegionResource) Update(ctx context.Context, req resource.UpdateRe
 	data.LastUpdated = types.StringValue(time.Now().Format(time.RFC850))
 	data.Prefix = types.StringValue(api.DefaultDbPrefix)
 	data.ExternalID = types.StringValue(tenantRegionInfo.RegionExternalID)
+	if tenantRegionInfo.MaxScanBytes != nil {
+		data.MaxScanBytes = types.Int64Value(int64(*tenantRegionInfo.MaxScanBytes))
+	}
+	data.EffectiveMaxScanBytes = types.Int64Value(int64(tenantRegionInfo.EffectiveMaxScanBytes))
 	data.SqsARN = types.StringValue(sqsARN)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)

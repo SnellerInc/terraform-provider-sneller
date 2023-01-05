@@ -3,10 +3,12 @@ package api
 import "time"
 
 type TenantRegionInfo struct {
-	Bucket           string
-	RegionRoleArn    string
-	RegionExternalID string
-	SqsArn           string
+	Bucket                string
+	RegionRoleArn         string
+	RegionExternalID      string
+	SqsArn                string
+	MaxScanBytes          *uint64
+	EffectiveMaxScanBytes uint64
 }
 
 type TenantInfo struct {

@@ -9,6 +9,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
 
+const DefaultMaxScanBytes = 1024 * 1024 * 1024 * 1024 * 3
+
 func TestAccResourceTenantRegion(t *testing.T) {
 	resourceName := "sneller_tenant_region.test"
 	resource.Test(t, resource.TestCase{
@@ -18,9 +20,10 @@ func TestAccResourceTenantRegion(t *testing.T) {
 			{
 				Config: acctest.ProviderConfig + `
 					resource "sneller_tenant_region" "test" {
-						region   = "` + api.DefaultSnellerRegion + `"
-						bucket   = "` + acctest.Bucket1Name + `"
-						role_arn = "` + acctest.Role1ARN + `"
+						region         = "` + api.DefaultSnellerRegion + `"
+						bucket         = "` + acctest.Bucket1Name + `"
+						role_arn       = "` + acctest.Role1ARN + `"
+						max_scan_bytes = 123456789
 					}`,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "id", fmt.Sprintf("%s/%s", acctest.SnellerTenantID, api.DefaultSnellerRegion)),
@@ -30,6 +33,8 @@ func TestAccResourceTenantRegion(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "prefix", api.DefaultDbPrefix),
 					resource.TestCheckResourceAttr(resourceName, "role_arn", acctest.Role1ARN),
 					resource.TestCheckResourceAttr(resourceName, "external_id", acctest.SnellerTenantID),
+					resource.TestCheckResourceAttr(resourceName, "max_scan_bytes", "123456789"),
+					resource.TestCheckResourceAttr(resourceName, "effective_max_scan_bytes", "123456789"),
 					resource.TestCheckResourceAttr(resourceName, "sqs_arn", fmt.Sprintf("arn:aws:sqs:%s:%s:tenant-sdb-%s", api.DefaultSnellerRegion, acctest.SnellerAccountID, acctest.SnellerTenantID)),
 				),
 			},
@@ -56,6 +61,8 @@ func TestAccResourceTenantRegion(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "prefix", api.DefaultDbPrefix),
 					resource.TestCheckResourceAttr(resourceName, "role_arn", acctest.Role2ARN),
 					resource.TestCheckResourceAttr(resourceName, "external_id", acctest.SnellerTenantID),
+					resource.TestCheckNoResourceAttr(resourceName, "max_scan_bytes"),
+					resource.TestCheckResourceAttr(resourceName, "effective_max_scan_bytes", fmt.Sprintf("%d", DefaultMaxScanBytes)),
 					resource.TestCheckResourceAttr(resourceName, "sqs_arn", fmt.Sprintf("arn:aws:sqs:%s:%s:tenant-sdb-%s", api.DefaultSnellerRegion, acctest.SnellerAccountID, acctest.SnellerTenantID)),
 				),
 			},

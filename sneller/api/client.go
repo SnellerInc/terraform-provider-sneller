@@ -253,6 +253,34 @@ func (c *Client) ResetBucket(ctx context.Context, region string) error {
 	return nil
 }
 
+func (c *Client) SetMaxScanBytes(ctx context.Context, region string, maxScanBytes *uint64) (uint64, error) {
+	req := c.url(ctx, http.MethodPatch, region, "")
+	q, err := url.ParseQuery(req.URL.RawQuery)
+	if err != nil {
+		return 0, err
+	}
+	q.Set("operation", "setMaxScanBytes")
+	if maxScanBytes != nil {
+		q.Set("maxScanBytes", fmt.Sprintf("%d", *maxScanBytes))
+	}
+	req.URL.RawQuery = q.Encode()
+
+	resp, err := c.client().Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		msg, _ := io.ReadAll(resp.Body)
+		return 0, fmt.Errorf("HTTP status %d: %s", resp.StatusCode, msg)
+	}
+
+	var effectiveMaxScanBytes uint64
+	json.NewDecoder(resp.Body).Decode(&effectiveMaxScanBytes)
+	return effectiveMaxScanBytes, nil
+}
+
 func (c *Client) Databases(ctx context.Context, region string) ([]string, error) {
 	resp, err := c.client().Do(c.url(ctx, http.MethodGet, region, "/db"))
 	if err != nil {

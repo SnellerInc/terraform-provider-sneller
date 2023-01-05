@@ -96,10 +96,12 @@ resource "sneller_tenant_region" "test" {
 
 ### Optional
 
+- `max_scan_bytes` (Number) Maximum number of bytes scanned per query
 - `region` (String) Region from which to fetch the tenant configuration. When not set, then it default's to the tenant's home region.
 
 ### Read-Only
 
+- `effective_max_scan_bytes` (Number) Effective maximum number of bytes scanned per query
 - `external_id` (String) External ID (typically the same as the tenant ID) that is passed when assuming the IAM role
 - `id` (String) Terraform identifier.
 - `last_updated` (String) Timestamp of the last Terraform update.

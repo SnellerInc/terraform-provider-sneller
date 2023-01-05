@@ -17,11 +17,13 @@ Provides region configuration of the tenant.
 
 ### Optional
 
+- `max_scan_bytes` (Number) Maximum number of bytes scanned per query (when not set, then Sneller's default value is used)
 - `region` (String) Region from which to fetch the tenant configuration. When not set, then it default's to the tenant's home region.
 
 ### Read-Only
 
 - `bucket` (String) Sneller cache bucket name.
+- `effective_max_scan_bytes` (Number) Effective maximum number of bytes scanned per query
 - `external_id` (String) External ID (typically the same as the tenant ID) that is passed when assuming the IAM role
 - `id` (String) Terraform identifier.
 - `prefix` (String) Prefix of the files in the Sneller cache bucket (always 'db/').

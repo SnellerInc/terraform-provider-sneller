@@ -27,13 +27,15 @@ type tenantRegionDataSource struct {
 }
 
 type tenantRegionDataSourceModel struct {
-	ID         types.String `tfsdk:"id"`
-	Region     types.String `tfsdk:"region"`
-	Bucket     types.String `tfsdk:"bucket"`
-	Prefix     types.String `tfsdk:"prefix"`
-	RoleARN    types.String `tfsdk:"role_arn"`
-	ExternalID types.String `tfsdk:"external_id"`
-	SqsARN     types.String `tfsdk:"sqs_arn"`
+	ID                    types.String `tfsdk:"id"`
+	Region                types.String `tfsdk:"region"`
+	Bucket                types.String `tfsdk:"bucket"`
+	Prefix                types.String `tfsdk:"prefix"`
+	RoleARN               types.String `tfsdk:"role_arn"`
+	ExternalID            types.String `tfsdk:"external_id"`
+	MaxScanBytes          types.Int64  `tfsdk:"max_scan_bytes"`
+	EffectiveMaxScanBytes types.Int64  `tfsdk:"effective_max_scan_bytes"`
+	SqsARN                types.String `tfsdk:"sqs_arn"`
 }
 
 func (d *tenantRegionDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
@@ -66,6 +68,14 @@ func (d *tenantRegionDataSource) Schema(ctx context.Context, req datasource.Sche
 			},
 			"external_id": schema.StringAttribute{
 				Description: "External ID (typically the same as the tenant ID) that is passed when assuming the IAM role",
+				Computed:    true,
+			},
+			"max_scan_bytes": schema.Int64Attribute{
+				Description: "Maximum number of bytes scanned per query (when not set, then Sneller's default value is used)",
+				Optional:    true,
+			},
+			"effective_max_scan_bytes": schema.Int64Attribute{
+				Description: "Effective maximum number of bytes scanned per query",
 				Computed:    true,
 			},
 			"sqs_arn": schema.StringAttribute{
@@ -131,6 +141,10 @@ func (d *tenantRegionDataSource) Read(ctx context.Context, req datasource.ReadRe
 	data.Prefix = types.StringValue(api.DefaultDbPrefix)
 	data.RoleARN = types.StringValue(tenantRegionInfo.RegionRoleArn)
 	data.ExternalID = types.StringValue(tenantRegionInfo.RegionExternalID)
+	if tenantRegionInfo.MaxScanBytes != nil {
+		data.MaxScanBytes = types.Int64Value(int64(*tenantRegionInfo.MaxScanBytes))
+	}
+	data.EffectiveMaxScanBytes = types.Int64Value(int64(tenantRegionInfo.EffectiveMaxScanBytes))
 	data.SqsARN = types.StringValue(sqsARN)
 
 	// Save data into Terraform state
