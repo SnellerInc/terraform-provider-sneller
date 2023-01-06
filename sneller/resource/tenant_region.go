@@ -56,26 +56,31 @@ func (r *tenantRegionResource) Schema(ctx context.Context, req resource.SchemaRe
 				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"region": schema.StringAttribute{
-				Description:   "Region from which to fetch the tenant configuration. When not set, then it default's to the tenant's home region.",
-				Optional:      true,
-				Computed:      true,
-				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
+				Description: "Region from which to fetch the tenant configuration. When not set, then it default's to the tenant's home region.",
+				Optional:    true,
+				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"bucket": schema.StringAttribute{
 				Description: "Sneller cache bucket name.",
 				Required:    true,
 			},
 			"prefix": schema.StringAttribute{
-				Description: "Prefix of the files in the Sneller cache bucket (always 'db/').",
-				Computed:    true,
+				Description:   "Prefix of the files in the Sneller cache bucket (always 'db/').",
+				Computed:      true,
+				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"role_arn": schema.StringAttribute{
 				Description: "ARN of the role that is used to access the S3 data in this region's cache bucket. It is also used by the ingestion process to read the source data.",
 				Required:    true,
 			},
 			"external_id": schema.StringAttribute{
-				Description: "External ID (typically the same as the tenant ID) that is passed when assuming the IAM role",
-				Computed:    true,
+				Description:   "External ID (typically the same as the tenant ID) that is passed when assuming the IAM role",
+				Computed:      true,
+				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"max_scan_bytes": schema.Int64Attribute{
 				Description: "Maximum number of bytes scanned per query",
@@ -86,8 +91,9 @@ func (r *tenantRegionResource) Schema(ctx context.Context, req resource.SchemaRe
 				Computed:    true,
 			},
 			"sqs_arn": schema.StringAttribute{
-				Description: "ARN of the SQS resource that is used to signal the ingestion process when new data arrives.",
-				Computed:    true,
+				Description:   "ARN of the SQS resource that is used to signal the ingestion process when new data arrives.",
+				Computed:      true,
+				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 		},
 	}

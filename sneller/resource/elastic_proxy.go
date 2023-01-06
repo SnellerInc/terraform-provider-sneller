@@ -74,10 +74,13 @@ func (r *elasticProxyResource) Schema(ctx context.Context, req resource.SchemaRe
 				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"region": schema.StringAttribute{
-				Description:   "Region for which to configure the Elastic Proxy.",
-				Optional:      true,
-				Computed:      true,
-				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
+				Description: "Region for which to configure the Elastic Proxy. If not set, then the configuration is assumed to be located in the tenant's home region.",
+				Optional:    true,
+				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"location": schema.StringAttribute{
 				MarkdownDescription: "Location of the Elastic proxy configuration file (i.e. `s3://sneller-cache-bucket/db/elastic-proxy.json`).",
@@ -85,12 +88,12 @@ func (r *elasticProxyResource) Schema(ctx context.Context, req resource.SchemaRe
 				Computed:            true,
 			},
 			"log_path": schema.StringAttribute{
-				MarkdownDescription: "Location where Elastic Proxy logging is stored (i.e. `s3://logging-bucket/elastic-proxy/`).",
-				Description:         "Location where Elastic Proxy logging is stored (i.e. 's3://logging-bucket/elastic-proxy/').",
+				MarkdownDescription: "Location where Elastic Proxy logging is stored (i.e. `s3://logging-bucket/elastic-proxy/`). Make sure Sneller is allowed to write to this S3 bucket.",
+				Description:         "Location where Elastic Proxy logging is stored (i.e. 's3://logging-bucket/elastic-proxy/'). Make sure Sneller is allowed to write to this S3 bucket.",
 				Optional:            true,
 			},
 			"log_flags": schema.SingleNestedAttribute{
-				Description: "Logging flags",
+				Description: "Logging flags.",
 				Optional:    true,
 				Attributes: map[string]schema.Attribute{
 					"log_request": schema.BoolAttribute{
