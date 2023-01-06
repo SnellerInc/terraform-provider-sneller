@@ -26,7 +26,6 @@ func TestAccResourceTenantRegion(t *testing.T) {
 					}`,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "id", fmt.Sprintf("%s/%s", acctest.SnellerTenantID, api.DefaultSnellerRegion)),
-					resource.TestCheckResourceAttrSet(resourceName, "last_updated"),
 					resource.TestCheckResourceAttr(resourceName, "region", api.DefaultSnellerRegion),
 					resource.TestCheckResourceAttr(resourceName, "bucket", acctest.Bucket1Name),
 					resource.TestCheckResourceAttr(resourceName, "prefix", api.DefaultDbPrefix),
@@ -39,10 +38,9 @@ func TestAccResourceTenantRegion(t *testing.T) {
 			},
 			// Import testing
 			{
-				ResourceName:            resourceName,
-				ImportState:             true,
-				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"last_updated"}, // TF only
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
 			},
 			// Update and Read testing
 			{
@@ -54,7 +52,6 @@ func TestAccResourceTenantRegion(t *testing.T) {
 					}`,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "id", fmt.Sprintf("%s/%s", acctest.SnellerTenantID, api.DefaultSnellerRegion)),
-					resource.TestCheckResourceAttrSet(resourceName, "last_updated"),
 					resource.TestCheckResourceAttr(resourceName, "region", "us-east-1"),
 					resource.TestCheckResourceAttr(resourceName, "bucket", acctest.Bucket2Name),
 					resource.TestCheckResourceAttr(resourceName, "prefix", api.DefaultDbPrefix),

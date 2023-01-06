@@ -90,15 +90,13 @@ func TestAccResourceTable(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "beta_features.#", "1"),
 					resource.TestCheckResourceAttr(resourceName, "beta_features.0", "zion"),
 					resource.TestCheckResourceAttr(resourceName, "skip_backfill", "true"),
-					resource.TestCheckResourceAttrSet(resourceName, "last_updated"),
 				),
 			},
 			// Import testing
 			{
-				ResourceName:            resourceName,
-				ImportState:             true,
-				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"last_updated"}, // TF only
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
 			},
 			// Update and Read testing
 			{
@@ -132,7 +130,6 @@ func TestAccResourceTable(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "retention_policy.valid_for", "100d"),
 					resource.TestCheckNoResourceAttr(resourceName, "beta_features"),
 					resource.TestCheckResourceAttr(resourceName, "skip_backfill", "false"),
-					resource.TestCheckResourceAttrSet(resourceName, "last_updated"),
 				),
 			},
 			// Delete is automatically tested

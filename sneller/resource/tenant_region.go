@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 	"terraform-provider-sneller/sneller/api"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -33,7 +32,6 @@ type tenantRegionResource struct {
 
 type tenantRegionResourceModel struct {
 	ID                    types.String `tfsdk:"id"`
-	LastUpdated           types.String `tfsdk:"last_updated"`
 	Region                types.String `tfsdk:"region"`
 	Bucket                types.String `tfsdk:"bucket"`
 	Prefix                types.String `tfsdk:"prefix"`
@@ -56,10 +54,6 @@ func (r *tenantRegionResource) Schema(ctx context.Context, req resource.SchemaRe
 				Description:   "Terraform identifier.",
 				Computed:      true,
 				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
-			},
-			"last_updated": schema.StringAttribute{
-				Description: "Timestamp of the last Terraform update.",
-				Computed:    true,
 			},
 			"region": schema.StringAttribute{
 				Description:   "Region from which to fetch the tenant configuration. When not set, then it default's to the tenant's home region.",
@@ -236,7 +230,6 @@ func (r *tenantRegionResource) Create(ctx context.Context, req resource.CreateRe
 	}
 
 	data.ID = types.StringValue(fmt.Sprintf("%s/%s", tenantInfo.TenantID, region))
-	data.LastUpdated = types.StringValue(time.Now().Format(time.RFC850))
 	data.Region = types.StringValue(region)
 	data.Prefix = types.StringValue(api.DefaultDbPrefix)
 	data.ExternalID = types.StringValue(tenantRegionInfo.RegionExternalID)
@@ -339,7 +332,6 @@ func (r *tenantRegionResource) Update(ctx context.Context, req resource.UpdateRe
 		}
 	}
 
-	data.LastUpdated = types.StringValue(time.Now().Format(time.RFC850))
 	data.Prefix = types.StringValue(api.DefaultDbPrefix)
 	data.ExternalID = types.StringValue(tenantRegionInfo.RegionExternalID)
 	if tenantRegionInfo.MaxScanBytes != nil {

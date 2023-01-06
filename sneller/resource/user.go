@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 	"terraform-provider-sneller/sneller/api"
-	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -33,7 +32,6 @@ type userResource struct {
 
 type userResourceModel struct {
 	ID          types.String `tfsdk:"id"`
-	LastUpdated types.String `tfsdk:"last_updated"`
 	UserID      types.String `tfsdk:"user_id"`
 	Email       types.String `tfsdk:"email"`
 	IsEnabled   types.Bool   `tfsdk:"is_enabled"`
@@ -56,10 +54,6 @@ func (r *userResource) Schema(ctx context.Context, req resource.SchemaRequest, r
 				Description:   "Terraform identifier.",
 				Computed:      true,
 				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
-			},
-			"last_updated": schema.StringAttribute{
-				Description: "Timestamp of the last Terraform update.",
-				Computed:    true,
 			},
 			"user_id": schema.StringAttribute{
 				Description: "User identifier.",
@@ -226,7 +220,6 @@ func (r *userResource) Create(ctx context.Context, req resource.CreateRequest, r
 	}
 
 	data.ID = types.StringValue(fmt.Sprintf("%s/%s", tenantInfo.TenantID, userID))
-	data.LastUpdated = types.StringValue(time.Now().Format(time.RFC850))
 	data.UserID = types.StringValue(userID)
 	data.Email = types.StringValue(email)
 	data.IsEnabled = types.BoolValue(true)
@@ -309,7 +302,6 @@ func (r *userResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	data.UserID = oldData.UserID
 	data.IsFederated = oldData.IsFederated
 
-	data.LastUpdated = types.StringValue(time.Now().Format(time.RFC850))
 	if isEnabled != nil {
 		data.IsEnabled = types.BoolValue(*isEnabled)
 	}

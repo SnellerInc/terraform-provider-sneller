@@ -8,7 +8,6 @@ import (
 	"strings"
 	"terraform-provider-sneller/sneller/api"
 	"terraform-provider-sneller/sneller/model"
-	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -38,7 +37,6 @@ type tableResource struct {
 
 type tableResourceModel struct {
 	ID              types.String                `tfsdk:"id" json:"ignore"`
-	LastUpdated     types.String                `tfsdk:"last_updated" json:"ignore"`
 	Region          types.String                `tfsdk:"region" json:"ignore"`
 	Database        types.String                `tfsdk:"database" json:"ignore"`
 	Location        types.String                `tfsdk:"location" json:"ignore"`
@@ -124,10 +122,6 @@ func (r *tableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 				Description:   "Terraform identifier.",
 				Computed:      true,
 				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
-			},
-			"last_updated": schema.StringAttribute{
-				Description: "Timestamp of the last Terraform update.",
-				Computed:    true,
 			},
 			"region": schema.StringAttribute{
 				Description: "Region where the table should be created. If not set, then the table is created in the tenant's home region.",
@@ -373,7 +367,6 @@ func (r *tableResource) Create(ctx context.Context, req resource.CreateRequest, 
 	}
 
 	data.ID = types.StringValue(fmt.Sprintf("%s/%s/%s/%s", tenantInfo.TenantID, region, database, table))
-	data.LastUpdated = types.StringValue(time.Now().Format(time.RFC850))
 	data.Region = types.StringValue(region)
 	data.Location = types.StringValue(fmt.Sprintf("%s/db/%s/%s/", tenantInfo.Regions[region].Bucket, database, table))
 
@@ -421,7 +414,6 @@ func (r *tableResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		return
 	}
 
-	data.LastUpdated = types.StringValue(time.Now().Format(time.RFC850))
 	data.Location = types.StringValue(fmt.Sprintf("%s/db/%s/%s/", tenantInfo.Regions[region].Bucket, database, table))
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)

@@ -41,7 +41,6 @@ resource "sneller_user" "test" {
 
 - `id` (String) Terraform identifier.
 - `is_federated` (Boolean) Flag indicating whether the user is using an federated identity provider.
-- `last_updated` (String) Timestamp of the last Terraform update.
 - `user_id` (String) User identifier.
 
 ## Import

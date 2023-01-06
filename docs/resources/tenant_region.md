@@ -104,7 +104,6 @@ resource "sneller_tenant_region" "test" {
 - `effective_max_scan_bytes` (Number) Effective maximum number of bytes scanned per query
 - `external_id` (String) External ID (typically the same as the tenant ID) that is passed when assuming the IAM role
 - `id` (String) Terraform identifier.
-- `last_updated` (String) Timestamp of the last Terraform update.
 - `prefix` (String) Prefix of the files in the Sneller cache bucket (always 'db/').
 - `sqs_arn` (String) ARN of the SQS resource that is used to signal the ingestion process when new data arrives.
 

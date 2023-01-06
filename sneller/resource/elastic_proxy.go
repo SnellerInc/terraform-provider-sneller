@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 	"terraform-provider-sneller/sneller/api"
-	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -32,13 +31,12 @@ type elasticProxyResource struct {
 }
 
 type elasticProxyResourceModel struct {
-	ID          types.String                              `tfsdk:"id"`
-	LastUpdated types.String                              `tfsdk:"last_updated"`
-	Region      types.String                              `tfsdk:"region"`
-	Location    types.String                              `tfsdk:"location"`
-	LogPath     types.String                              `tfsdk:"log_path"`
-	LogFlags    *elasticProxyLogFlagsResourceModel        `tfsdk:"log_flags"`
-	Index       map[string]elasticProxyIndexResourceModel `tfsdk:"index"`
+	ID       types.String                              `tfsdk:"id"`
+	Region   types.String                              `tfsdk:"region"`
+	Location types.String                              `tfsdk:"location"`
+	LogPath  types.String                              `tfsdk:"log_path"`
+	LogFlags *elasticProxyLogFlagsResourceModel        `tfsdk:"log_flags"`
+	Index    map[string]elasticProxyIndexResourceModel `tfsdk:"index"`
 }
 
 type elasticProxyLogFlagsResourceModel struct {
@@ -74,10 +72,6 @@ func (r *elasticProxyResource) Schema(ctx context.Context, req resource.SchemaRe
 				Description:   "Terraform identifier.",
 				Computed:      true,
 				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
-			},
-			"last_updated": schema.StringAttribute{
-				Description: "Timestamp of the last Terraform update.",
-				Computed:    true,
 			},
 			"region": schema.StringAttribute{
 				Description:   "Region for which to configure the Elastic Proxy.",
@@ -323,7 +317,6 @@ func (r *elasticProxyResource) Create(ctx context.Context, req resource.CreateRe
 
 	data.ID = types.StringValue(fmt.Sprintf("%s/%s", tenantInfo.TenantID, region))
 	data.Region = types.StringValue(region)
-	data.LastUpdated = types.StringValue(time.Now().Format(time.RFC850))
 	data.Location = types.StringValue(fmt.Sprintf("%s/%selastic-proxy.json", tenantInfo.Regions[region].Bucket, api.DefaultDbPrefix))
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
@@ -375,7 +368,6 @@ func (r *elasticProxyResource) Update(ctx context.Context, req resource.UpdateRe
 		return
 	}
 
-	data.LastUpdated = types.StringValue(time.Now().Format(time.RFC850))
 	data.Location = types.StringValue(fmt.Sprintf("%s/%selastic-proxy.json", tenantInfo.Regions[region].Bucket, api.DefaultDbPrefix))
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)

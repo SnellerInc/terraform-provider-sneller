@@ -85,15 +85,13 @@ func TestAccResourceElasticProxy(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "index.ind2.type_mapping.u_string_*.fields.%", "2"),
 					resource.TestCheckResourceAttr(resourceName, "index.ind2.type_mapping.u_string_*.fields.raw", "text"),
 					resource.TestCheckResourceAttr(resourceName, "index.ind2.type_mapping.u_string_*.fields.test", "test"),
-					resource.TestCheckResourceAttrSet(resourceName, "last_updated"),
 				),
 			},
 			// Import testing
 			{
-				ResourceName:            resourceName,
-				ImportState:             true,
-				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"last_updated"}, // TF only
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
 			},
 			// Update and Read testing
 			{
@@ -118,7 +116,6 @@ func TestAccResourceElasticProxy(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "index.ind1.database", "test-db"),
 					resource.TestCheckResourceAttr(resourceName, "index.ind1.table", "table-z"),
 					resource.TestCheckResourceAttr(resourceName, "index.ind1.ignore_total_hits", "false"),
-					resource.TestCheckResourceAttrSet(resourceName, "last_updated"),
 				),
 			},
 			// Delete is automatically tested

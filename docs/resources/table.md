@@ -71,7 +71,6 @@ resource "sneller_table" "test" {
 ### Read-Only
 
 - `id` (String) Terraform identifier.
-- `last_updated` (String) Timestamp of the last Terraform update.
 - `location` (String) S3 url of the database location (i.e. `s3://sneller-cache-bucket/db/test-db/test-table/`).
 
 <a id="nestedatt--inputs"></a>

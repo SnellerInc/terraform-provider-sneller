@@ -37,15 +37,13 @@ func TestAccResourceUser(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "locale", "nl-NL"),
 					resource.TestCheckResourceAttr(resourceName, "given_name", "John"),
 					resource.TestCheckResourceAttr(resourceName, "family_name", "Doe"),
-					resource.TestCheckResourceAttrSet(resourceName, "last_updated"),
 				),
 			},
 			// Import testing
 			{
-				ResourceName:            resourceName,
-				ImportState:             true,
-				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"last_updated"}, // TF only
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
 			},
 			// Update and Read testing
 			{
@@ -68,7 +66,6 @@ func TestAccResourceUser(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "locale", "de-DE"),
 					resource.TestCheckResourceAttr(resourceName, "given_name", "Max"),
 					resource.TestCheckResourceAttr(resourceName, "family_name", "Mustermann"),
-					resource.TestCheckResourceAttrSet(resourceName, "last_updated"),
 				),
 			},
 			// Delete is automatically tested

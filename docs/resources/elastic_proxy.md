@@ -25,7 +25,6 @@ Configure the Elastic proxy.
 ### Read-Only
 
 - `id` (String) Terraform identifier.
-- `last_updated` (String) Timestamp of the last Terraform update.
 - `location` (String) Location of the Elastic proxy configuration file (i.e. `s3://sneller-cache-bucket/db/elastic-proxy.json`).
 
 <a id="nestedatt--index"></a>
