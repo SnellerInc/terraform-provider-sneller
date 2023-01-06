@@ -10,6 +10,7 @@ import (
 	"terraform-provider-sneller/sneller/model"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -17,7 +18,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
+	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"golang.org/x/exp/slices"
 )
 
 func NewTableResource() resource.Resource {
@@ -179,6 +182,7 @@ func (r *tableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 									},
 								},
 							},
+							Validators: []validator.List{tableSupportedFormatsValidator{filterFormats("json")}},
 						},
 						"csv_hints": schema.MapNestedAttribute{
 							Description: "Ingestion hints for CSV input.",
@@ -196,7 +200,7 @@ func (r *tableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 									"fields":         fields,
 								},
 							},
-							// TODO: Only allows for CSV format
+							Validators: []validator.Map{tableSupportedFormatsValidator{filterFormats("csv")}},
 						},
 						"tsv_hints": schema.MapNestedAttribute{
 							Description: "Ingestion hints for TSV input.",
@@ -208,7 +212,7 @@ func (r *tableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 									"fields":         fields,
 								},
 							},
-							// TODO: Only allows for TSV format
+							Validators: []validator.Map{tableSupportedFormatsValidator{filterFormats("tsv")}},
 						},
 					},
 				},
@@ -471,6 +475,19 @@ func (r *tableResource) ImportState(ctx context.Context, req resource.ImportStat
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
 
+func filterFormats(format string) (ff []string) {
+	for _, f := range api.Formats {
+		if format == f {
+			ff = append(ff, f)
+			continue
+		}
+		if strings.HasPrefix(f, format+".") {
+			ff = append(ff, f)
+		}
+	}
+	return ff
+}
+
 func (r *tableResource) writeTable(ctx context.Context, data tableResourceModel, region, database, table string, diags diag.Diagnostics) error {
 	copy := data
 	if copy.SkipBackfill != nil && !*copy.SkipBackfill {
@@ -496,4 +513,64 @@ func (r *tableResource) writeTable(ctx context.Context, data tableResourceModel,
 	}
 
 	return nil
+}
+
+var _ validator.List = &tableSupportedFormatsValidator{}
+var _ validator.Map = &tableSupportedFormatsValidator{}
+
+type tableSupportedFormatsValidator struct {
+	formats []string
+}
+
+func (v tableSupportedFormatsValidator) Description(_ context.Context) string {
+	return fmt.Sprintf("Only valid for formats '%s'", strings.Join(v.formats, "', '"))
+}
+
+func (v tableSupportedFormatsValidator) MarkdownDescription(ctx context.Context) string {
+	return fmt.Sprintf("Only valid for formats `%s`", strings.Join(v.formats, "`, `"))
+}
+
+func (v tableSupportedFormatsValidator) ValidateList(ctx context.Context, req validator.ListRequest, resp *validator.ListResponse) {
+	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() {
+		return
+	}
+
+	diags := v.validate(ctx, req.Config, req.PathExpression)
+	resp.Diagnostics.Append(diags...)
+}
+
+func (v tableSupportedFormatsValidator) ValidateMap(ctx context.Context, req validator.MapRequest, resp *validator.MapResponse) {
+	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() {
+		return
+	}
+
+	diags := v.validate(ctx, req.Config, req.PathExpression)
+	resp.Diagnostics.Append(diags...)
+}
+
+func (v tableSupportedFormatsValidator) validate(ctx context.Context, config tfsdk.Config, pathExpr path.Expression) diag.Diagnostics {
+	fa := pathExpr.AtParent().AtName("format")
+	paths, diags := config.PathMatches(ctx, fa)
+	if diags.HasError() {
+		return diags
+	}
+
+	var formatAttr attr.Value
+	if diags := config.GetAttribute(ctx, paths[0], &formatAttr); diags.HasError() {
+		return diags
+	}
+
+	var formatString types.String
+	if diags := tfsdk.ValueAs(ctx, formatAttr, &formatString); diags.HasError() {
+		return diags
+	}
+
+	format := formatString.ValueString()
+	if !slices.Contains(v.formats, format) {
+		return diag.Diagnostics{
+			diag.NewErrorDiagnostic("not valid for format", fmt.Sprintf("property %q cannot be set for format %q", pathExpr, format)),
+		}
+	}
+
+	return diag.Diagnostics{}
 }

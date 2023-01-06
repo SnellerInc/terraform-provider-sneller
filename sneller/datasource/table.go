@@ -173,7 +173,6 @@ func (d *tableDataSource) Schema(ctx context.Context, req datasource.SchemaReque
 									"fields":         fields,
 								},
 							},
-							// TODO: Only allows for CSV format
 						},
 						"tsv_hints": schema.MapNestedAttribute{
 							Description: "Ingestion hints for TSV input.",
@@ -185,7 +184,6 @@ func (d *tableDataSource) Schema(ctx context.Context, req datasource.SchemaReque
 									"fields":         fields,
 								},
 							},
-							// TODO: Only allows for TSV format
 						},
 					},
 				},
