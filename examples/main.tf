@@ -6,7 +6,7 @@ terraform {
     }
 
     sneller = {
-      source  = "snellerinc/sneller"
+      source = "snellerinc/sneller"
     }
   }
 }
