@@ -16,8 +16,8 @@ provider "aws" {
 }
 
 provider "sneller" {
-  api_endpoint   = "http://localhost:8080"
-  #api_endpoint   = "https://latest-api-master.__REGION__.sneller-dev.io"
+  #api_endpoint   = "http://localhost:8080"
+  api_endpoint   = "https://api-production.__REGION__.sneller.io"
   default_region = var.region
   token          = var.sneller_token
 }
