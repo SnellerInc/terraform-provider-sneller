@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"sort"
 	"strings"
 )
 
@@ -96,7 +97,7 @@ func (m *TableInputModel) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		if shadow.Hints != nil {
-			m.JSONHints = shadow.Hints.Hints
+			m.JSONHints = shadow.Hints.Rules
 		}
 
 	case "csv", "csv.gz", "csv.zst":
@@ -128,92 +129,220 @@ func (m *TableInputModel) UnmarshalJSON(data []byte) error {
 }
 
 type TableInputJSONHintsModel struct {
-	Hints []TableInputJSONHintModel
+	Rules []TableInputJSONHintModel
 }
 
 func (h *TableInputJSONHintsModel) MarshalJSON() ([]byte, error) {
-	// We need custom marshalling here, because the order of
-	// the hash-map is order-sensitive.
-	sb := bytes.Buffer{}
-	sb.WriteRune('{')
-	totalFields := 0
-	for _, fh := range h.Hints {
-		if len(fh.Hints) > 0 {
-			if totalFields > 0 {
-				sb.WriteRune(',')
-			}
-			fieldName, err := json.Marshal(fh.Field)
-			if err != nil {
-				return nil, err
-			}
-			sb.WriteString(string(fieldName))
-			sb.WriteRune(':')
-			if len(fh.Hints) == 1 {
-				err = json.NewEncoder(&sb).Encode(fh.Hints[0])
-			} else {
-				err = json.NewEncoder(&sb).Encode(fh.Hints)
-			}
-			if err != nil {
-				return nil, err
-			}
-			totalFields++
-		}
-	}
-	sb.WriteRune('}')
-	return sb.Bytes(), nil
+	return json.Marshal(h.Rules)
 }
 
 func (h *TableInputJSONHintsModel) UnmarshalJSON(data []byte) error {
 	d := json.NewDecoder(bytes.NewReader(data))
-	token, err := d.Token()
+	t, err := d.Token()
 	if err != nil {
 		return err
 	}
-	if token != json.Delim('{') {
-		return ErrExpectedStartOfObject
+
+	// TODO: Deprecate and remove object encoding
+	// TODO: Use high-level unmarshalling functions afterwards
+
+	switch t {
+	case json.Delim('{'):
+		return h.decodeRulesFromObject(d)
+	case json.Delim('['):
+		return h.decodeRulesFromArray(d)
 	}
-	h.Hints = nil
+
+	return errors.New("unsupported type; expected 'object' or 'array'")
+}
+
+func (h *TableInputJSONHintsModel) decodeRulesFromObject(d *json.Decoder) error {
 	for {
-		token, err = d.Token()
+		t, err := d.Token()
 		if err != nil {
 			return err
 		}
-		if token == json.Delim('}') {
-			break
+		if t == json.Delim('}') {
+			// End of main json object -> done
+			return nil
 		}
-		field, ok := token.(string)
-		if !ok {
-			return ErrExpectedFieldName
-		}
-		var value any
-		if err = d.Decode(&value); err != nil {
+
+		path := t.(string)
+		hints, err := decodeHints(d)
+		if err != nil {
 			return err
 		}
-		hint := TableInputJSONHintModel{Field: field}
-		switch v := value.(type) {
-		case string:
-			hint.Hints = []string{v}
-		case []any:
-			hints := make([]string, 0, len(v))
-			for _, h := range v {
-				if hh, ok := h.(string); ok {
-					hints = append(hints, hh)
-				} else {
-					return ErrInvalidHint
-				}
-			}
-			hint.Hints = hints
-		default:
-			return ErrInvalidHint
+
+		h.Rules = append(h.Rules, TableInputJSONHintModel{
+			Path:  path,
+			Hints: hints,
+		})
+	}
+}
+
+func (h *TableInputJSONHintsModel) decodeRulesFromArray(d *json.Decoder) error {
+	for {
+		t, err := d.Token()
+		if err != nil {
+			return err
 		}
-		h.Hints = append(h.Hints, hint)
+		if t == json.Delim(']') {
+			// End of main json array -> done
+			return nil
+		}
+
+		if t == json.Delim('{') {
+			path, hints, err := decodeRuleObject(d)
+			if err != nil {
+				return err
+			}
+
+			h.Rules = append(h.Rules, TableInputJSONHintModel{
+				Path:  path,
+				Hints: hints,
+			})
+
+			continue
+		}
+
+		return errors.New("unsupported type; expected 'object'")
+	}
+}
+
+func decodeRuleObject(d *json.Decoder) (path string, hints Hints, err error) {
+	for {
+		t, err := d.Token()
+		if err != nil {
+			return "", nil, err
+		}
+		if t == json.Delim('}') {
+			// End of rule json object -> done
+			break
+		}
+
+		label := strings.ToLower(t.(string))
+		switch label {
+		case "path":
+			t, err = d.Token()
+			if err != nil {
+				return "", nil, err
+			}
+			value, ok := t.(string)
+			if !ok {
+				return "", nil, errors.New("unsupported type; expected 'string'")
+			}
+			path = value
+		case "hints":
+			value, err := decodeHints(d)
+			if err != nil {
+				return "", nil, err
+			}
+			hints = value
+		default:
+			// Ignore all extra fields..
+			if err = skipValue(d); err != nil {
+				return "", nil, err
+			}
+		}
+	}
+	return
+}
+
+func decodeHints(d *json.Decoder) (Hints, error) {
+	t, err := d.Token()
+	if err != nil {
+		return nil, err
+	}
+
+	value, ok := t.(string)
+	if ok {
+		return []string{value}, nil
+	}
+
+	if t != json.Delim('[') {
+		return nil, errors.New("unsupported type; expected 'string' or '[]string'")
+	}
+
+	var result Hints
+	for {
+		t, err := d.Token()
+		if err != nil {
+			return nil, err
+		}
+		if t == json.Delim(']') {
+			return result, nil
+		}
+		value, ok := t.(string)
+		if !ok {
+			return nil, errors.New("unsupported type; expected 'string'")
+		}
+
+		result = append(result, value)
+	}
+}
+
+func skipValue(d *json.Decoder) error {
+	t, err := d.Token()
+	if err != nil {
+		return err
+	}
+	switch t {
+	case json.Delim('['), json.Delim('{'):
+		for {
+			if err := skipValue(d); err != nil {
+				if err == errErrDelim {
+					break
+				}
+				return err
+			}
+		}
+	case json.Delim(']'), json.Delim('}'):
+		return errErrDelim
 	}
 	return nil
 }
 
+var errErrDelim = errors.New("invalid end of array or object")
+
+type Hints []string
+
+func (h *Hints) MarshallJSON() ([]byte, error) {
+	if len(*h) == 0 {
+		return json.Marshal("default")
+	}
+	if len(*h) == 1 {
+		return json.Marshal((*h)[0])
+	}
+
+	sort.Strings(*h)
+
+	return json.Marshal(*h)
+}
+
+func (h *Hints) UnmarshallJSON(data []byte) (err error) {
+	*h = (*h)[0:0]
+
+	switch data[0] {
+	case '"':
+		var s string
+		if err = json.Unmarshal(data, &s); err != nil {
+			return err
+		}
+		*h = append(*h, s)
+	case '[':
+		if err = json.Unmarshal(data, h); err != nil {
+			return err
+		}
+	default:
+		return errors.New("unsupported type; expected string or list of strings")
+	}
+
+	return err
+}
+
 type TableInputJSONHintModel struct {
-	Field string   `tfsdk:"field"`
-	Hints []string `tfsdk:"hints"`
+	Path  string `tfsdk:"path"  json:"path"`
+	Hints Hints  `tfsdk:"hints" json:"hints"`
 }
 
 type TableInputCSVHintModel []struct {
