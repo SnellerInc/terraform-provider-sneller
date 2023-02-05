@@ -31,9 +31,11 @@ func TestAccDataSourceElasticProxy(t *testing.T) {
 			}
 			index = {
 				ind1 = {
-					database          = "test-db"
-					table             = "table-x"
-					ignore_total_hits = true
+					database                   = "test-db"
+					table                      = "table-x"
+					ignore_total_hits          = true
+					ignore_sum_other_doc_count = true
+			  
 				}
 				ind2 = {
 					database          = "test-db"
@@ -82,10 +84,12 @@ func TestAccDataSourceElasticProxy(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "index.ind1.database", "test-db"),
 					resource.TestCheckResourceAttr(resourceName, "index.ind1.table", "table-x"),
 					resource.TestCheckResourceAttr(resourceName, "index.ind1.ignore_total_hits", "true"),
+					resource.TestCheckResourceAttr(resourceName, "index.ind1.ignore_sum_other_doc_count", "true"),
 					resource.TestCheckNoResourceAttr(resourceName, "index.ind1.type_mapping.#"),
 					resource.TestCheckResourceAttr(resourceName, "index.ind2.database", "test-db"),
 					resource.TestCheckResourceAttr(resourceName, "index.ind2.table", "table-y"),
 					resource.TestCheckResourceAttr(resourceName, "index.ind2.ignore_total_hits", "false"),
+					resource.TestCheckResourceAttr(resourceName, "index.ind2.ignore_sum_other_doc_count", "false"),
 					resource.TestCheckResourceAttr(resourceName, "index.ind2.type_mapping.%", "2"),
 					resource.TestCheckResourceAttr(resourceName, "index.ind2.type_mapping.timestamp.type", "unix_nano_seconds"),
 					resource.TestCheckNoResourceAttr(resourceName, "index.ind2.type_mapping.timestamp.fields.%"),

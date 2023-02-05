@@ -34,6 +34,7 @@ Read-Only:
 
 - `database` (String) Sneller database.
 - `ignore_total_hits` (Boolean) Ignore 'total_hits' in Elastic response (more efficient).
+- `ignore_sum_other_doc_count` (Boolean) Ignore 'sum_other_doc_count' in Elastic response (more efficient).
 - `table` (String) Sneller table.
 - `type_mapping` (Attributes Map) Custom type mappings. (see [below for nested schema](#nestedatt--index--type_mapping))
 

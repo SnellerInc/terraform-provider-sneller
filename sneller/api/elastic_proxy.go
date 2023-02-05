@@ -35,10 +35,11 @@ type ElasticProxySnellerConfig struct {
 }
 
 type ElasticProxyMappingConfig struct {
-	Database        string                             `json:"database"`
-	Table           string                             `json:"table"`
-	IgnoreTotalHits bool                               `json:"ignoreTotalHits"`
-	TypeMapping     map[string]ElasticProxyTypeMapping `json:"typeMapping,omitempty"`
+	Database               string                             `json:"database"`
+	Table                  string                             `json:"table"`
+	IgnoreTotalHits        bool                               `json:"ignoreTotalHits"`
+	IgnoreSumOtherDocCount bool                               `json:"ignoreSumOtherDocCount"`
+	TypeMapping            map[string]ElasticProxyTypeMapping `json:"typeMapping,omitempty"`
 }
 
 type ElasticProxyTypeMapping struct {

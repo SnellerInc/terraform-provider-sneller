@@ -7,9 +7,10 @@ resource "sneller_elastic_proxy" "test" {
   }
   index = {
     test = {
-      database          = "test-db"
-      table             = "test-table"
-      ignore_total_hits = true
+      database                   = "test-db"
+      table                      = "test-table"
+      ignore_total_hits          = true
+      ignore_sum_other_doc_count = true
 
       type_mapping = {
         timestamp = {

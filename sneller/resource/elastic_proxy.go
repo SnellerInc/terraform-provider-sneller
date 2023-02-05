@@ -49,10 +49,11 @@ type elasticProxyLogFlagsResourceModel struct {
 }
 
 type elasticProxyIndexResourceModel struct {
-	Database        types.String                                    `tfsdk:"database"`
-	Table           types.String                                    `tfsdk:"table"`
-	IgnoreTotalHits types.Bool                                      `tfsdk:"ignore_total_hits"`
-	TypeMapping     map[string]elasticProxyTypeMappingResourceModel `tfsdk:"type_mapping"`
+	Database               types.String                                    `tfsdk:"database"`
+	Table                  types.String                                    `tfsdk:"table"`
+	IgnoreTotalHits        types.Bool                                      `tfsdk:"ignore_total_hits"`
+	IgnoreSumOtherDocCount types.Bool                                      `tfsdk:"ignore_sum_other_doc_count"`
+	TypeMapping            map[string]elasticProxyTypeMappingResourceModel `tfsdk:"type_mapping"`
 }
 
 type elasticProxyTypeMappingResourceModel struct {
@@ -149,6 +150,12 @@ func (r *elasticProxyResource) Schema(ctx context.Context, req resource.SchemaRe
 						},
 						"ignore_total_hits": schema.BoolAttribute{
 							Description:   "Ignore 'total_hits' in Elastic response (more efficient).",
+							Optional:      true,
+							Computed:      true,
+							PlanModifiers: []planmodifier.Bool{BoolDefaultValue(false)},
+						},
+						"ignore_sum_other_doc_count": schema.BoolAttribute{
+							Description:   "Ignore 'sum_other_doc_count' in Elastic response (more efficient).",
 							Optional:      true,
 							Computed:      true,
 							PlanModifiers: []planmodifier.Bool{BoolDefaultValue(false)},
@@ -257,9 +264,10 @@ func (r *elasticProxyResource) Read(ctx context.Context, req resource.ReadReques
 		data.Index = make(map[string]elasticProxyIndexResourceModel, len(config.Mapping))
 		for index, config := range config.Mapping {
 			mapping := elasticProxyIndexResourceModel{
-				Database:        types.StringValue(config.Database),
-				Table:           types.StringValue(config.Table),
-				IgnoreTotalHits: types.BoolValue(config.IgnoreTotalHits),
+				Database:               types.StringValue(config.Database),
+				Table:                  types.StringValue(config.Table),
+				IgnoreTotalHits:        types.BoolValue(config.IgnoreTotalHits),
+				IgnoreSumOtherDocCount: types.BoolValue(config.IgnoreSumOtherDocCount),
 			}
 			if len(config.TypeMapping) > 0 {
 				mapping.TypeMapping = make(map[string]elasticProxyTypeMappingResourceModel, len(config.TypeMapping))
@@ -444,10 +452,11 @@ func elasticProxyConfigFromData(data elasticProxyResourceModel) api.ElasticProxy
 	if data.Index != nil {
 		for index, mapping := range data.Index {
 			mappingConfig := api.ElasticProxyMappingConfig{
-				Database:        mapping.Database.ValueString(),
-				Table:           mapping.Table.ValueString(),
-				IgnoreTotalHits: mapping.IgnoreTotalHits.ValueBool(),
-				TypeMapping:     make(map[string]api.ElasticProxyTypeMapping, len(mapping.TypeMapping)),
+				Database:               mapping.Database.ValueString(),
+				Table:                  mapping.Table.ValueString(),
+				IgnoreTotalHits:        mapping.IgnoreTotalHits.ValueBool(),
+				IgnoreSumOtherDocCount: mapping.IgnoreSumOtherDocCount.ValueBool(),
+				TypeMapping:            make(map[string]api.ElasticProxyTypeMapping, len(mapping.TypeMapping)),
 			}
 			if mapping.TypeMapping != nil {
 				for typ, config := range mapping.TypeMapping {

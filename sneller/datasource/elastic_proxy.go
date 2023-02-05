@@ -44,10 +44,11 @@ type elasticProxyLogFlagsDataSourceModel struct {
 }
 
 type elasticProxyIndexDataSourceModel struct {
-	Database        types.String                                      `tfsdk:"database"`
-	Table           types.String                                      `tfsdk:"table"`
-	IgnoreTotalHits types.Bool                                        `tfsdk:"ignore_total_hits"`
-	TypeMapping     map[string]elasticProxyTypeMappingDataSourceModel `tfsdk:"type_mapping"`
+	Database               types.String                                      `tfsdk:"database"`
+	Table                  types.String                                      `tfsdk:"table"`
+	IgnoreTotalHits        types.Bool                                        `tfsdk:"ignore_total_hits"`
+	IgnoreSumOtherDocCount types.Bool                                        `tfsdk:"ignore_sum_other_doc_count"`
+	TypeMapping            map[string]elasticProxyTypeMappingDataSourceModel `tfsdk:"type_mapping"`
 }
 
 type elasticProxyTypeMappingDataSourceModel struct {
@@ -126,6 +127,10 @@ func (d *elasticProxyDataSource) Schema(ctx context.Context, req datasource.Sche
 						},
 						"ignore_total_hits": schema.BoolAttribute{
 							Description: "Ignore 'total_hits' in Elastic response (more efficient).",
+							Computed:    true,
+						},
+						"ignore_sum_other_doc_count": schema.BoolAttribute{
+							Description: "Ignore 'sum_other_doc_count' in Elastic response (more efficient).",
 							Computed:    true,
 						},
 						"type_mapping": schema.MapNestedAttribute{
@@ -219,9 +224,10 @@ func (d *elasticProxyDataSource) Read(ctx context.Context, req datasource.ReadRe
 		data.Index = make(map[string]elasticProxyIndexDataSourceModel, len(config.Mapping))
 		for index, config := range config.Mapping {
 			mapping := elasticProxyIndexDataSourceModel{
-				Database:        types.StringValue(config.Database),
-				Table:           types.StringValue(config.Table),
-				IgnoreTotalHits: types.BoolValue(config.IgnoreTotalHits),
+				Database:               types.StringValue(config.Database),
+				Table:                  types.StringValue(config.Table),
+				IgnoreTotalHits:        types.BoolValue(config.IgnoreTotalHits),
+				IgnoreSumOtherDocCount: types.BoolValue(config.IgnoreSumOtherDocCount),
 			}
 			if len(config.TypeMapping) > 0 {
 				mapping.TypeMapping = make(map[string]elasticProxyTypeMappingDataSourceModel, len(config.TypeMapping))
