@@ -43,7 +43,7 @@ type tableResourceModel struct {
 	Region          types.String                `tfsdk:"region" json:"ignore"`
 	Database        types.String                `tfsdk:"database" json:"ignore"`
 	Location        types.String                `tfsdk:"location" json:"ignore"`
-	Table           *string                     `tfsdk:"table" json:"name"`
+	Table           *string                     `tfsdk:"table" json:"ignore"`
 	Inputs          []model.TableInputModel     `tfsdk:"inputs" json:"input"`
 	Partitions      []model.TablePartitionModel `tfsdk:"partitions" json:"partitions,omitempty"`
 	RetentionPolicy *model.TableRetentionModel  `tfsdk:"retention_policy" json:"retention_policy,omitempty"`
