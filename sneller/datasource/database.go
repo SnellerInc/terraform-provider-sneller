@@ -109,10 +109,17 @@ func (d *databaseDataSource) Read(ctx context.Context, req datasource.ReadReques
 
 	tableInfos, err := d.client.Database(ctx, region, database)
 	if err != nil {
-		resp.Diagnostics.AddError(
-			"Cannot get databases",
-			fmt.Sprintf("Unable to get databases in region %s: %v", region, err.Error()),
-		)
+		if err == api.ErrNotFound {
+			resp.Diagnostics.AddError(
+				"Database not found",
+				fmt.Sprintf("Database %q not found (region %s)", database, region),
+			)
+		} else {
+			resp.Diagnostics.AddError(
+				"Cannot get database information",
+				fmt.Sprintf("Unable to get database information for database %q (region %s): %v", database, region, err.Error()),
+			)
+		}
 		return
 	}
 

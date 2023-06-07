@@ -4,12 +4,17 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+)
+
+var (
+	ErrNotFound = errors.New("not found")
 )
 
 type Client struct {
@@ -310,7 +315,7 @@ func (c *Client) Database(ctx context.Context, region, database string) ([]Table
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		if resp.StatusCode == http.StatusNotFound {
-			return nil, fmt.Errorf("Database %q not found", database)
+			return nil, ErrNotFound
 		}
 		msg, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("HTTP status %d: %s", resp.StatusCode, msg)
@@ -377,7 +382,7 @@ func (c *Client) Table(ctx context.Context, region, database, table string) ([]b
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		if resp.StatusCode == http.StatusNotFound {
-			return nil, fmt.Errorf("Table %q in database %q not found", table, database)
+			return nil, ErrNotFound
 		}
 		msg, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("HTTP status %d: %s", resp.StatusCode, msg)

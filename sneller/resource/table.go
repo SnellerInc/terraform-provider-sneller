@@ -317,6 +317,10 @@ func (r *tableResource) Read(ctx context.Context, req resource.ReadRequest, resp
 
 	tableDescription, err := r.client.Table(ctx, region, database, table)
 	if err != nil {
+		if err == api.ErrNotFound {
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		resp.Diagnostics.AddError(
 			"Cannot get table configuration",
 			fmt.Sprintf("Unable to get tenant table configuration of table %s:%s in region %s: %v", database, table, region, err.Error()),

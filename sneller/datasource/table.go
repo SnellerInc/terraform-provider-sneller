@@ -269,10 +269,17 @@ func (d *tableDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 	database, table := data.Database.ValueString(), *data.Table
 	tableDescription, err := d.client.Table(ctx, region, database, table)
 	if err != nil {
-		resp.Diagnostics.AddError(
-			"Cannot get table configuration",
-			fmt.Sprintf("Unable to get tenant table configuration of table %s:%s in region %s: %v", database, table, region, err.Error()),
-		)
+		if err == api.ErrNotFound {
+			resp.Diagnostics.AddError(
+				"Table not found",
+				fmt.Sprintf("Table %q not found in database %q (region %s)", table, database, region),
+			)
+		} else {
+			resp.Diagnostics.AddError(
+				"Cannot get table configuration",
+				fmt.Sprintf("Unable to get tenant table configuration of table %s:%s (region %s): %v", database, table, region, err.Error()),
+			)
+		}
 		return
 	}
 
