@@ -158,31 +158,27 @@ func (d *tableDataSource) Schema(ctx context.Context, req datasource.SchemaReque
 								},
 							},
 						},
-						"csv_hints": schema.MapNestedAttribute{
+						"csv_hints": schema.SingleNestedAttribute{
 							Description: "Ingestion hints for CSV input.",
 							Computed:    true,
-							NestedObject: schema.NestedAttributeObject{
-								Attributes: map[string]schema.Attribute{
-									"separator": schema.StringAttribute{
-										Description:         "specify a custom separator (defaults to ',').",
-										MarkdownDescription: "specify a custom separator (defaults to `,`).",
-										Computed:            true,
-									},
-									"skip_records":   skipRecords,
-									"missing_values": missingValues,
-									"fields":         fields,
+							Attributes: map[string]schema.Attribute{
+								"separator": schema.StringAttribute{
+									Description:         "specify a custom separator (defaults to ',').",
+									MarkdownDescription: "specify a custom separator (defaults to `,`).",
+									Computed:            true,
 								},
+								"skip_records":   skipRecords,
+								"missing_values": missingValues,
+								"fields":         fields,
 							},
 						},
-						"tsv_hints": schema.MapNestedAttribute{
+						"tsv_hints": schema.SingleNestedAttribute{
 							Description: "Ingestion hints for TSV input.",
 							Computed:    true,
-							NestedObject: schema.NestedAttributeObject{
-								Attributes: map[string]schema.Attribute{
-									"skip_records":   skipRecords,
-									"missing_values": missingValues,
-									"fields":         fields,
-								},
+							Attributes: map[string]schema.Attribute{
+								"skip_records":   skipRecords,
+								"missing_values": missingValues,
+								"fields":         fields,
 							},
 						},
 					},

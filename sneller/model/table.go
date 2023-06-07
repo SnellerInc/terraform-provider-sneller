@@ -18,8 +18,8 @@ type TableInputModel struct {
 	Pattern   string                    `tfsdk:"pattern"`
 	Format    *string                   `tfsdk:"format"`
 	JSONHints []TableInputJSONHintModel `tfsdk:"json_hints"`
-	CSVHints  []TableInputCSVHintModel  `tfsdk:"csv_hints"`
-	TSVHints  []TableInputTSVHintModel  `tfsdk:"tsv_hints"`
+	CSVHints  *TableInputCSVHintModel   `tfsdk:"csv_hints"`
+	TSVHints  *TableInputTSVHintModel   `tfsdk:"tsv_hints"`
 }
 
 func (m *TableInputModel) MarshalJSON() ([]byte, error) {
@@ -46,7 +46,7 @@ func (m *TableInputModel) MarshalJSON() ([]byte, error) {
 		}
 		sb.Write(hintsValue)
 	}
-	if len(m.CSVHints) > 0 {
+	if m.CSVHints != nil {
 		sb.Write([]byte(`,"hints":`))
 		hintsValue, err := json.Marshal(m.CSVHints)
 		if err != nil {
@@ -54,7 +54,7 @@ func (m *TableInputModel) MarshalJSON() ([]byte, error) {
 		}
 		sb.Write(hintsValue)
 	}
-	if len(m.TSVHints) > 0 {
+	if m.TSVHints != nil {
 		sb.Write([]byte(`,"hints":`))
 		hintsValue, err := json.Marshal(m.TSVHints)
 		if err != nil {
@@ -102,26 +102,26 @@ func (m *TableInputModel) UnmarshalJSON(data []byte) error {
 
 	case "csv", "csv.gz", "csv.zst":
 		var shadow struct {
-			Hints *[]TableInputCSVHintModel `json:"hints,omitempty"`
+			Hints *TableInputCSVHintModel `json:"hints,omitempty"`
 		}
 		err := json.Unmarshal(data, &shadow)
 		if err != nil {
 			return err
 		}
 		if shadow.Hints != nil {
-			m.CSVHints = *shadow.Hints
+			m.CSVHints = shadow.Hints
 		}
 
 	case "tsv", "tsv.gz", "tsv.zst":
 		var shadow struct {
-			Hints *[]TableInputTSVHintModel `json:"hints,omitempty"`
+			Hints *TableInputTSVHintModel `json:"hints,omitempty"`
 		}
 		err := json.Unmarshal(data, &shadow)
 		if err != nil {
 			return err
 		}
 		if shadow.Hints != nil {
-			m.TSVHints = *shadow.Hints
+			m.TSVHints = shadow.Hints
 		}
 	}
 
@@ -345,16 +345,16 @@ type TableInputJSONHintModel struct {
 	Hints Hints  `tfsdk:"hints" json:"hints"`
 }
 
-type TableInputCSVHintModel []struct {
+type TableInputCSVHintModel struct {
 	Separator     *string                        `tfsdk:"separator" json:"separator,omitempty"`
-	SkipRecords   *int64                         `tfsdk:"skip_records" json:"skipRecords,omitempty"`
-	MissingValues []string                       `tfsdk:"missing_values" json:"missingValues,omitempty"`
+	SkipRecords   *int64                         `tfsdk:"skip_records" json:"skip_records,omitempty"`
+	MissingValues []string                       `tfsdk:"missing_values" json:"missing_values,omitempty"`
 	Fields        []TableInputXSVHintsFieldModel `tfsdk:"fields" json:"fields,omitempty"`
 }
 
-type TableInputTSVHintModel []struct {
-	SkipRecords   *int64                         `tfsdk:"skip_records" json:"skipRecords,omitempty"`
-	MissingValues []string                       `tfsdk:"missing_values" json:"missingValues,omitempty"`
+type TableInputTSVHintModel struct {
+	SkipRecords   *int64                         `tfsdk:"skip_records" json:"skip_records,omitempty"`
+	MissingValues []string                       `tfsdk:"missing_values" json:"missing_values,omitempty"`
 	Fields        []TableInputXSVHintsFieldModel `tfsdk:"fields" json:"fields,omitempty"`
 }
 
@@ -365,9 +365,9 @@ type TableInputXSVHintsFieldModel struct {
 	Format        *string  `tfsdk:"format" json:"format,omitempty"`
 	AllowEmpty    *bool    `tfsdk:"allow_empty" json:"allowEmpty,omitempty"`
 	NoIndex       *bool    `tfsdk:"no_index" json:"noIndex,omitempty"`
-	TrueValues    []string `tfsdk:"true_values" json:"trueValues"`
-	FalseValues   []string `tfsdk:"false_values" json:"falseValues"`
-	MissingValues []string `tfsdk:"missing_values" json:"missingValues"`
+	TrueValues    []string `tfsdk:"true_values" json:"trueValues,omitempty"`
+	FalseValues   []string `tfsdk:"false_values" json:"falseValues,omitempty"`
+	MissingValues []string `tfsdk:"missing_values" json:"missingValues,omitempty"`
 }
 
 type TablePartitionModel struct {

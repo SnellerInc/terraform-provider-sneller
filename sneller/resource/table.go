@@ -184,35 +184,31 @@ func (r *tableResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 							},
 							Validators: []validator.List{tableSupportedFormatsValidator{filterFormats("json")}},
 						},
-						"csv_hints": schema.MapNestedAttribute{
+						"csv_hints": schema.SingleNestedAttribute{
 							Description: "Ingestion hints for CSV input.",
 							Optional:    true,
-							NestedObject: schema.NestedAttributeObject{
-								Attributes: map[string]schema.Attribute{
-									"separator": schema.StringAttribute{
-										Description:         "specify a custom separator (defaults to ',').",
-										MarkdownDescription: "specify a custom separator (defaults to `,`).",
-										Optional:            true,
-										Validators:          []validator.String{stringvalidator.LengthBetween(1, 1)},
-									},
-									"skip_records":   skipRecords,
-									"missing_values": missingValues,
-									"fields":         fields,
+							Attributes: map[string]schema.Attribute{
+								"separator": schema.StringAttribute{
+									Description:         "specify a custom separator (defaults to ',').",
+									MarkdownDescription: "specify a custom separator (defaults to `,`).",
+									Optional:            true,
+									Validators:          []validator.String{stringvalidator.LengthBetween(1, 1)},
 								},
+								"skip_records":   skipRecords,
+								"missing_values": missingValues,
+								"fields":         fields,
 							},
-							Validators: []validator.Map{tableSupportedFormatsValidator{filterFormats("csv")}},
+							Validators: []validator.Object{tableSupportedFormatsValidator{filterFormats("csv")}},
 						},
-						"tsv_hints": schema.MapNestedAttribute{
+						"tsv_hints": schema.SingleNestedAttribute{
 							Description: "Ingestion hints for TSV input.",
 							Optional:    true,
-							NestedObject: schema.NestedAttributeObject{
-								Attributes: map[string]schema.Attribute{
-									"skip_records":   skipRecords,
-									"missing_values": missingValues,
-									"fields":         fields,
-								},
+							Attributes: map[string]schema.Attribute{
+								"skip_records":   skipRecords,
+								"missing_values": missingValues,
+								"fields":         fields,
 							},
-							Validators: []validator.Map{tableSupportedFormatsValidator{filterFormats("tsv")}},
+							Validators: []validator.Object{tableSupportedFormatsValidator{filterFormats("tsv")}},
 						},
 					},
 				},
@@ -520,7 +516,7 @@ func (r *tableResource) writeTable(ctx context.Context, data tableResourceModel,
 }
 
 var _ validator.List = &tableSupportedFormatsValidator{}
-var _ validator.Map = &tableSupportedFormatsValidator{}
+var _ validator.Object = &tableSupportedFormatsValidator{}
 
 type tableSupportedFormatsValidator struct {
 	formats []string
@@ -543,7 +539,7 @@ func (v tableSupportedFormatsValidator) ValidateList(ctx context.Context, req va
 	resp.Diagnostics.Append(diags...)
 }
 
-func (v tableSupportedFormatsValidator) ValidateMap(ctx context.Context, req validator.MapRequest, resp *validator.MapResponse) {
+func (v tableSupportedFormatsValidator) ValidateObject(ctx context.Context, req validator.ObjectRequest, resp *validator.ObjectResponse) {
 	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() {
 		return
 	}
