@@ -366,7 +366,7 @@ func (r *tableResource) Create(ctx context.Context, req resource.CreateRequest, 
 	}
 
 	database, table := data.Database.ValueString(), *data.Table
-	if err = r.writeTable(ctx, data, region, database, table, resp.Diagnostics); err != nil {
+	if err = r.writeTable(ctx, data, region, database, table, &resp.Diagnostics); err != nil {
 		return
 	}
 
@@ -414,7 +414,7 @@ func (r *tableResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		return
 	}
 
-	if err = r.writeTable(ctx, data, region, database, table, resp.Diagnostics); err != nil {
+	if err = r.writeTable(ctx, data, region, database, table, &resp.Diagnostics); err != nil {
 		return
 	}
 
@@ -488,7 +488,7 @@ func filterFormats(format string) (ff []string) {
 	return ff
 }
 
-func (r *tableResource) writeTable(ctx context.Context, data tableResourceModel, region, database, table string, diags diag.Diagnostics) error {
+func (r *tableResource) writeTable(ctx context.Context, data tableResourceModel, region, database, table string, diags *diag.Diagnostics) error {
 	copy := data
 	if copy.SkipBackfill != nil && !*copy.SkipBackfill {
 		// this prevents writing the `false` value
