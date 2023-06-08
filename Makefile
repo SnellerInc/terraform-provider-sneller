@@ -3,7 +3,7 @@ HOSTNAME=registry.terraform.io
 NAMESPACE=snellerinc
 NAME=sneller
 BINARY=terraform-provider-${NAME}
-VERSION=0.0.6
+VERSION=0.0.7
 OS_ARCH=linux_amd64
 
 default: install
