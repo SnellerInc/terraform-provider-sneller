@@ -3,7 +3,7 @@ HOSTNAME=registry.terraform.io
 NAMESPACE=snellerinc
 NAME=sneller
 BINARY=terraform-provider-${NAME}
-VERSION=0.0.7
+VERSION?=$(shell git describe --tags --exact-match | sed 's/^v//')
 OS_ARCH=linux_amd64
 
 default: install
