@@ -5,7 +5,7 @@ const (
 	EnvSnellerApiEndpoint = "SNELLER_API_ENDPOINT"
 	EnvSnellerToken       = "SNELLER_TOKEN"
 	EnvSnellerRegion      = "SNELLER_REGION"
-	DefaultApiEndPoint    = "https://latest-api-production.__REGION__.sneller.io"
+	DefaultApiEndPoint    = "https://api-production.__REGION__.sneller.ai"
 	DefaultSnellerRegion  = "us-east-1"
 	DefaultDbPrefix       = "db/"
 )
